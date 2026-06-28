@@ -25,7 +25,13 @@ export default function InboxSimulator() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"autonomous" | "approval">("autonomous");
+  const [persist, setPersist] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // A stable customer handle per session so persisted turns thread together.
+  const [handle] = useState(
+    () => "demo_" + Math.random().toString(36).slice(2, 8),
+  );
 
   async function send(message: string) {
     if (!message.trim() || loading) return;
@@ -36,10 +42,16 @@ export default function InboxSimulator() {
     setTurns((t) => [...t, { who: "customer", body: message }]);
     setLoading(true);
     try {
-      const res = await fetch("/api/simulate", {
+      // "Save to workspace" persists to Supabase via the demo pipeline;
+      // otherwise run the stateless live demo.
+      const endpoint = persist ? "/api/inbox" : "/api/simulate";
+      const payload = persist
+        ? { message, customerHandle: handle }
+        : { message, replyMode: mode, history };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, replyMode: mode, history }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -49,7 +61,11 @@ export default function InboxSimulator() {
         ]);
         return;
       }
-      const result = data as ResponderResult;
+      const result = (persist ? data.result : data) as ResponderResult;
+      if (!result) {
+        setTurns((t) => [...t, { who: "system", body: "No result returned" }]);
+        return;
+      }
       if (result.decision === "escalate") {
         setTurns((t) => [
           ...t,
@@ -77,23 +93,45 @@ export default function InboxSimulator() {
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Inbox · live demo</h1>
-        <div className="flex rounded-lg border border-slate-700 text-xs">
-          {(["autonomous", "approval"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`px-3 py-1.5 capitalize ${
-                mode === m ? "bg-emerald-500 text-slate-950" : "text-slate-300"
-              }`}
-            >
-              {m}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-slate-300">
+            <input
+              type="checkbox"
+              checked={persist}
+              onChange={(e) => setPersist(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            Save to workspace
+          </label>
+          <div className="flex rounded-lg border border-slate-700 text-xs">
+            {(["autonomous", "approval"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                disabled={persist}
+                className={`px-3 py-1.5 capitalize disabled:opacity-40 ${
+                  mode === m ? "bg-emerald-500 text-slate-950" : "text-slate-300"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <p className="mt-1 text-sm text-slate-400">
         Type as a customer (Arabic, dialect, Arabizi or English). The responder
         analyzes, applies guardrails, and replies or escalates.
+        {persist && (
+          <span className="text-emerald-400">
+            {" "}
+            Saving to the demo workspace — check the{" "}
+            <a href="/dashboard/analytics" className="underline">
+              Inspector report
+            </a>
+            .
+          </span>
+        )}
       </p>
 
       <div className="mt-5 min-h-[320px] space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">

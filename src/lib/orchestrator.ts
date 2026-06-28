@@ -2,14 +2,18 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { respond } from "@/lib/ai/responder";
 import { getAdapter, type InboundMessage } from "@/lib/platforms/adapter";
 import type { BrandVoice, Organization } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Core ingestion → AI → action pipeline. Runs in a trusted server context
- * (webhook handler) with the service-role client, so it must scope every
- * query by org_id itself rather than relying on RLS.
+ * Core ingestion → AI → action pipeline. Defaults to the service-role client
+ * (webhook handler) but accepts any client — e.g. the publishable-key client
+ * for the public demo workspace, which has scoped insert/update policies.
  */
-export async function handleInbound(inbound: InboundMessage) {
-  const db = createServiceClient();
+export async function handleInbound(
+  inbound: InboundMessage,
+  client?: SupabaseClient,
+) {
+  const db = client ?? createServiceClient();
 
   // 1. Resolve the connected account → org.
   const { data: account } = await db
@@ -104,7 +108,7 @@ export async function handleInbound(inbound: InboundMessage) {
       reason: result.escalation_reason ?? "low_confidence",
       draft: result.reply || null,
     });
-    return;
+    return result;
   }
 
   // Persist the AI reply (sent or pending-approval draft).
