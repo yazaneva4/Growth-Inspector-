@@ -1,0 +1,241 @@
+import { anthropic, MODELS } from "./anthropic";
+import type { BrandVoice, Intent, Language } from "@/lib/types";
+
+/** Topics the responder must never engage — hard-escalate to a human. */
+export const HARD_BLOCK_TOPICS = [
+  "politics or government criticism",
+  "religion or religious rulings",
+  "gender / relationship sensitivities",
+  "legal advice",
+  "medical diagnosis or advice",
+  "pricing or refund commitments beyond stated policy",
+];
+
+export interface MessageAnalysis {
+  intent: Intent;
+  sentiment: "positive" | "neutral" | "negative";
+  language: Language;
+  lead_score: number; // 0-100
+  hard_block: boolean;
+  hard_block_reason?: string;
+}
+
+export interface ResponderResult {
+  analysis: MessageAnalysis;
+  reply: string;
+  confidence: number; // 0-1
+  /** What the orchestrator should do given org reply_mode + threshold. */
+  decision: "send" | "draft" | "escalate";
+  escalation_reason?: "low_confidence" | "hard_block_topic" | "high_intent";
+}
+
+const ANALYSIS_SCHEMA = {
+  type: "object",
+  properties: {
+    intent: {
+      type: "string",
+      enum: [
+        "price_inquiry",
+        "complaint",
+        "hot_lead",
+        "spam",
+        "support",
+        "other",
+      ],
+    },
+    sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
+    language: {
+      type: "string",
+      enum: ["ar", "ar-dialect", "arabizi", "en", "mixed"],
+      description:
+        "ar = MSA, ar-dialect = Khaleeji/Najdi Arabic script, arabizi = Arabic in Latin letters/numbers, en = English, mixed = code-switched",
+    },
+    lead_score: { type: "number", description: "0-100 buying intent" },
+    hard_block: {
+      type: "boolean",
+      description: "true if the message touches a hard-block topic",
+    },
+    hard_block_reason: { type: "string" },
+  },
+  required: ["intent", "sentiment", "language", "lead_score", "hard_block"],
+  additionalProperties: false,
+} as const;
+
+const REPLY_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: {
+      type: "string",
+      description:
+        "The customer-facing reply, in the SAME language/dialect/register as the customer wrote in.",
+    },
+    confidence: {
+      type: "number",
+      description:
+        "0-1 self-assessed confidence that this reply is correct, safe, and on-brand.",
+    },
+  },
+  required: ["reply", "confidence"],
+  additionalProperties: false,
+} as const;
+
+function brandVoiceBlock(voice: BrandVoice): string {
+  const parts: string[] = [];
+  if (voice.tone) parts.push(`Tone: ${voice.tone}`);
+  if (voice.facts) parts.push(`Business facts you may use:\n${voice.facts}`);
+  if (voice.guardrails?.length)
+    parts.push(`Never: ${voice.guardrails.join("; ")}`);
+  if (voice.examples?.length) {
+    parts.push(
+      "Imitate the dialect and style of these past replies:\n" +
+        voice.examples
+          .map((e) => `Customer: ${e.customer}\nReply: ${e.reply}`)
+          .join("\n---\n"),
+    );
+  }
+  return parts.join("\n\n") || "(no brand voice configured yet)";
+}
+
+async function structured<T>(
+  model: string,
+  system: string,
+  user: string,
+  schema: object,
+  toolName: string,
+): Promise<T> {
+  const res = await anthropic().messages.create({
+    model,
+    max_tokens: 1024,
+    system,
+    tools: [{ name: toolName, description: `Return ${toolName}`, input_schema: schema as never }],
+    tool_choice: { type: "tool", name: toolName },
+    messages: [{ role: "user", content: user }],
+  });
+  const block = res.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") {
+    throw new Error("Model did not return structured output");
+  }
+  return block.input as T;
+}
+
+/** First pass: classify the inbound message + detect hard-block topics. */
+export async function analyzeMessage(
+  message: string,
+  history: { author: string; body: string }[] = [],
+): Promise<MessageAnalysis> {
+  const system = [
+    "You are the intelligence layer of Growth Inspector, a Saudi social media AI.",
+    "Classify the customer's latest message. You understand Saudi Arabic dialects",
+    "(Khaleeji/Najdi), Arabizi (Arabic written in Latin letters/numbers like '3ndk 7aga'),",
+    "MSA, English, and code-switching.",
+    "",
+    "Set hard_block=true if the message touches any of these topics, because they",
+    "must be handled by a human in Saudi Arabia:",
+    ...HARD_BLOCK_TOPICS.map((t) => `  - ${t}`),
+  ].join("\n");
+
+  const convo = history
+    .slice(-6)
+    .map((m) => `${m.author}: ${m.body}`)
+    .join("\n");
+  const user = `${convo ? `Conversation so far:\n${convo}\n\n` : ""}Latest customer message:\n${message}`;
+
+  return structured<MessageAnalysis>(
+    MODELS.reply,
+    system,
+    user,
+    ANALYSIS_SCHEMA,
+    "classify",
+  );
+}
+
+/** Second pass: generate the dialect-matched, brand-voiced reply. */
+export async function generateReply(
+  message: string,
+  analysis: MessageAnalysis,
+  voice: BrandVoice,
+  history: { author: string; body: string }[] = [],
+): Promise<{ reply: string; confidence: number }> {
+  const system = [
+    "You are Growth Inspector replying to a customer on social media for a Saudi business.",
+    "CRITICAL RULES:",
+    "1. Reply in the EXACT same language and dialect register the customer used",
+    `   (detected: ${analysis.language}). If they wrote Khaleeji dialect, reply in Khaleeji.`,
+    "   If they wrote Arabizi, reply in natural Arabic (script) unless they clearly prefer Latin.",
+    "2. Match the brand voice below precisely.",
+    "3. Be warm, concise, and helpful. Respect Saudi etiquette and culture.",
+    "4. Never invent prices, policies, or commitments not in the business facts.",
+    "5. If you are not sure, lower your confidence score rather than guessing.",
+    "",
+    "BRAND VOICE:",
+    brandVoiceBlock(voice),
+  ].join("\n");
+
+  const convo = history
+    .slice(-6)
+    .map((m) => `${m.author}: ${m.body}`)
+    .join("\n");
+  const user = `${convo ? `Conversation so far:\n${convo}\n\n` : ""}Customer just said:\n${message}\n\nWrite the reply.`;
+
+  return structured<{ reply: string; confidence: number }>(
+    MODELS.reply,
+    system,
+    user,
+    REPLY_SCHEMA,
+    "compose_reply",
+  );
+}
+
+/**
+ * Full pipeline: analyze → guardrail → generate → decide.
+ * `replyMode` and `threshold` come from the org config.
+ */
+export async function respond(
+  message: string,
+  opts: {
+    voice: BrandVoice;
+    replyMode: "autonomous" | "approval" | "off";
+    threshold: number;
+    history?: { author: string; body: string }[];
+  },
+): Promise<ResponderResult> {
+  const history = opts.history ?? [];
+  const analysis = await analyzeMessage(message, history);
+
+  // Guardrail: hard-block topics never auto-send.
+  if (analysis.hard_block || analysis.intent === "spam") {
+    return {
+      analysis,
+      reply: "",
+      confidence: 0,
+      decision: analysis.intent === "spam" ? "draft" : "escalate",
+      escalation_reason: analysis.hard_block ? "hard_block_topic" : undefined,
+    };
+  }
+
+  const { reply, confidence } = await generateReply(
+    message,
+    analysis,
+    opts.voice,
+    history,
+  );
+
+  // Decision matrix.
+  let decision: ResponderResult["decision"];
+  let escalation_reason: ResponderResult["escalation_reason"];
+
+  if (opts.replyMode === "off") {
+    decision = "draft";
+  } else if (confidence < opts.threshold) {
+    decision = "escalate";
+    escalation_reason = "low_confidence";
+  } else if (analysis.intent === "hot_lead" || analysis.lead_score >= 80) {
+    // High-value leads always get a human eye even when confident.
+    decision = opts.replyMode === "autonomous" ? "send" : "draft";
+    escalation_reason = "high_intent";
+  } else {
+    decision = opts.replyMode === "autonomous" ? "send" : "draft";
+  }
+
+  return { analysis, reply, confidence, decision, escalation_reason };
+}
