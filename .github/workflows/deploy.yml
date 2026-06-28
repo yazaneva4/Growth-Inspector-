@@ -1,0 +1,47 @@
+name: Deploy to Vercel
+
+# Deploys on push to the working branch. Requires these GitHub repo secrets
+# (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN        - https://vercel.com/account/tokens
+#   VERCEL_ORG_ID       - from `vercel link` → .vercel/project.json (orgId)
+#   VERCEL_PROJECT_ID   - from `vercel link` → .vercel/project.json (projectId)
+#
+# Set the app's runtime env vars (ANTHROPIC_API_KEY, the NEXT_PUBLIC_SUPABASE_*
+# values, SUPABASE_SERVICE_ROLE_KEY, META_VERIFY_TOKEN) in the Vercel project
+# settings — Vercel injects them at build/runtime. See DEPLOY.md.
+
+on:
+  push:
+    branches:
+      - claude/growth-inspector-saudi-int7vg
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Skips cleanly (no failures) until the Vercel secrets are configured.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.ENABLE_VERCEL_DEPLOY == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

@@ -20,6 +20,21 @@ vercel env add ...   # add the variables below (or set them in the dashboard)
 vercel --prod
 ```
 
+## Option C — GitHub Actions (in this repo)
+
+`.github/workflows/deploy.yml` deploys to Vercel on push. To enable it:
+
+1. Create a Vercel token: https://vercel.com/account/tokens
+2. Run `vercel link` once locally to generate `.vercel/project.json`, which
+   contains `orgId` and `projectId`.
+3. In GitHub → **Settings → Secrets and variables → Actions**, add secrets:
+   - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+4. Add a repo **variable** `ENABLE_VERCEL_DEPLOY` = `true` (the workflow skips
+   cleanly until this is set, so CI stays green meanwhile).
+5. Set the app env vars (below) in the **Vercel project settings**.
+
+`.github/workflows/ci.yml` runs lint + build on every push regardless.
+
 ## Environment variables
 
 | Variable | Secret? | Value |
