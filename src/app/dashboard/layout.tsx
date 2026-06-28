@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const nav = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/analytics", label: "Inspector report" },
   { href: "/dashboard/inbox", label: "Inbox" },
   { href: "/dashboard/escalations", label: "Escalations" },
   { href: "/dashboard/settings", label: "Brand voice" },

@@ -16,13 +16,28 @@ See [`SPEC.md`](./SPEC.md) for the full product & technical vision.
 
 | Area | Where |
 |---|---|
-| Multi-tenant schema + RLS | `supabase/migrations/0001_init.sql` |
+| Multi-tenant schema + RLS | `supabase/migrations/` |
 | AI responder (analyze → guardrail → reply → decide) | `src/lib/ai/responder.ts` |
+| Analytics aggregation | `src/lib/analytics.ts` |
+| Growth Inspector weekly AI report (Opus) | `src/lib/ai/report.ts` |
 | Ingestion pipeline (inbound → AI → send/escalate) | `src/lib/orchestrator.ts` |
 | Platform adapters (sandbox + WhatsApp/Instagram structure) | `src/lib/platforms/adapter.ts` |
 | Webhook ingestion | `src/app/api/webhooks/[platform]/route.ts` |
 | Live responder demo API (no DB needed) | `src/app/api/simulate/route.ts` |
-| Landing + dashboard + live inbox simulator | `src/app/` |
+| Landing + dashboard + analytics + live inbox | `src/app/` |
+
+## Supabase
+
+A live project is connected and the schema + a demo workspace are seeded.
+The dashboards (`/dashboard`, `/dashboard/analytics`, `/dashboard/escalations`)
+read the public **demo workspace** (org slug `demo`) through RLS using only the
+publishable key — real tenants stay isolated by membership-based policies.
+
+- Schema & policies: `supabase/migrations/0001..0003`
+- Demo data: `supabase/seed.sql`
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set in
+  `.env.local` (gitignored). Add `SUPABASE_SERVICE_ROLE_KEY` for webhook
+  ingestion and `ANTHROPIC_API_KEY` for the responder + AI report.
 
 ## The responder pipeline
 
