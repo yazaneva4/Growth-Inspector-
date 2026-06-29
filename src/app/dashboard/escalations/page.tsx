@@ -4,23 +4,31 @@ export const dynamic = "force-dynamic";
 
 export default async function EscalationsPage() {
   const db = createPublicClient();
-  const { data: org } = await db
-    .from("organizations")
-    .select("id")
-    .eq("slug", "demo")
-    .maybeSingle();
-
-  const { data: rows } = org
-    ? await db
+  let escalations: Array<{
+    id: string;
+    reason: string;
+    draft: string | null;
+    conversations?: unknown;
+  }> = [];
+  try {
+    const { data: org } = await db
+      .from("organizations")
+      .select("id")
+      .eq("slug", "demo")
+      .maybeSingle();
+    if (org) {
+      const { data: rows } = await db
         .from("escalations")
         .select(
           "id, reason, draft, resolved, created_at, conversations(customer_name, customer_handle, platform, language, lead_score)",
         )
         .eq("org_id", org.id)
-        .order("created_at", { ascending: false })
-    : { data: [] };
-
-  const escalations = rows ?? [];
+        .order("created_at", { ascending: false });
+      escalations = rows ?? [];
+    }
+  } catch {
+    // database unreachable — show the empty state
+  }
 
   return (
     <div className="max-w-3xl">

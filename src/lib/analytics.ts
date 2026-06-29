@@ -36,19 +36,27 @@ export async function getAnalytics(
 ): Promise<AnalyticsSummary | null> {
   const db = createPublicClient();
 
-  const { data: org } = await db
-    .from("organizations")
-    .select("id, name")
-    .eq("slug", orgSlug)
-    .maybeSingle();
+  let org: { id: string; name: string } | null = null;
+  try {
+    const { data } = await db
+      .from("organizations")
+      .select("id, name")
+      .eq("slug", orgSlug)
+      .maybeSingle();
+    org = data;
+  } catch {
+    // database unreachable — render an empty dashboard rather than a 500
+    return null;
+  }
   if (!org) return null;
 
   const since = new Date(
     Date.now() - rangeDays * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const [{ data: convs }, { data: msgs }, { count: escCount }] =
-    await Promise.all([
+  let convsRes, msgsRes, escRes;
+  try {
+    [convsRes, msgsRes, escRes] = await Promise.all([
       db
         .from("conversations")
         .select("intent, sentiment, language, lead_score, status, customer_name, customer_handle, created_at")
@@ -65,6 +73,12 @@ export async function getAnalytics(
         .eq("org_id", org.id)
         .gte("created_at", since),
     ]);
+  } catch {
+    return null;
+  }
+  const convs = convsRes.data;
+  const msgs = msgsRes.data;
+  const escCount = escRes.count;
 
   const conversations = convs ?? [];
   const messages = msgs ?? [];
