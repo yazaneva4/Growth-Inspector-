@@ -7,6 +7,7 @@ const nav = [
   { href: "/dashboard/inbox", label: "Inbox" },
   { href: "/dashboard/escalations", label: "Escalations" },
   { href: "/dashboard/settings", label: "Brand voice" },
+  { href: "/dashboard/plans", label: "Plans" },
 ];
 
 export default async function DashboardLayout({
