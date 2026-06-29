@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCurrentContext } from "@/lib/auth";
 
 const nav = [
   { href: "/dashboard", label: "Overview" },
@@ -8,18 +9,20 @@ const nav = [
   { href: "/dashboard/settings", label: "Brand voice" },
 ];
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const ctx = await getCurrentContext();
+
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <aside className="w-60 shrink-0 border-r border-slate-800 p-5">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-800 p-5">
         <Link href="/" className="text-lg font-bold">
           Growth<span className="text-emerald-400"> Inspector</span>
         </Link>
-        <nav className="mt-8 flex flex-col gap-1">
+        <nav className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((n) => (
             <Link
               key={n.href}
@@ -30,6 +33,31 @@ export default function DashboardLayout({
             </Link>
           ))}
         </nav>
+
+        <div className="mt-4 border-t border-slate-800 pt-4 text-xs">
+          {ctx.email ? (
+            <>
+              <div className="truncate text-slate-400" title={ctx.email}>
+                {ctx.email}
+              </div>
+              <form action="/auth/signout" method="post" className="mt-2">
+                <button className="w-full rounded-lg border border-slate-700 px-3 py-1.5 text-slate-300 hover:bg-slate-800">
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="text-slate-500">Viewing the demo workspace</div>
+              <Link
+                href="/login"
+                className="mt-2 block rounded-lg bg-emerald-500 px-3 py-1.5 text-center font-medium text-slate-950 hover:bg-emerald-400"
+              >
+                Sign in / Create account
+              </Link>
+            </>
+          )}
+        </div>
       </aside>
       <main className="flex-1 p-8">{children}</main>
     </div>

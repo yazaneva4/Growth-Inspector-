@@ -8,6 +8,7 @@ export type SocialPlatform =
   | "x"
   | "snapchat"
   | "tiktok"
+  | "email"
   | "sandbox";
 export type ConversationStatus = "open" | "escalated" | "closed";
 export type MessageDirection = "inbound" | "outbound";

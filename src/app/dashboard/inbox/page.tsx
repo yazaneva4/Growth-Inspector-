@@ -26,6 +26,7 @@ export default function InboxSimulator() {
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<"autonomous" | "approval">("autonomous");
   const [persist, setPersist] = useState(false);
+  const [channel, setChannel] = useState<"sandbox" | "email">("sandbox");
   const [loading, setLoading] = useState(false);
 
   // A stable customer handle per session so persisted turns thread together.
@@ -46,7 +47,12 @@ export default function InboxSimulator() {
       // otherwise run the stateless live demo.
       const endpoint = persist ? "/api/inbox" : "/api/simulate";
       const payload = persist
-        ? { message, customerHandle: handle }
+        ? {
+            message,
+            channel,
+            customerHandle:
+              channel === "email" ? `${handle}@example.com` : handle,
+          }
         : { message, replyMode: mode, history };
       const res = await fetch(endpoint, {
         method: "POST",
@@ -103,6 +109,23 @@ export default function InboxSimulator() {
             />
             Save to workspace
           </label>
+          {persist && (
+            <div className="flex rounded-lg border border-slate-700 text-xs">
+              {(["sandbox", "email"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setChannel(c)}
+                  className={`px-3 py-1.5 ${
+                    channel === c
+                      ? "bg-sky-500 text-slate-950"
+                      : "text-slate-300"
+                  }`}
+                >
+                  {c === "sandbox" ? "Social" : "Email"}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex rounded-lg border border-slate-700 text-xs">
             {(["autonomous", "approval"] as const).map((m) => (
               <button

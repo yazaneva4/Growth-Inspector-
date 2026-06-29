@@ -12,6 +12,12 @@ acct as (
   select id, 'sandbox', 'demo-sandbox', 'Demo Instagram' from org
   on conflict (platform, external_id) do update set display_name = excluded.display_name
   returning id, org_id
+),
+email_acct as (
+  insert into connected_accounts (org_id, platform, external_id, display_name)
+  select id, 'email', 'support-inbox', 'Support Email' from org
+  on conflict (platform, external_id) do update set display_name = excluded.display_name
+  returning id
 )
 insert into conversations (org_id, account_id, platform, customer_handle, customer_name, status, intent, sentiment, language, lead_score, last_message_at, created_at)
 select acct.org_id, acct.id, 'sandbox', c.handle, c.name, c.status::conversation_status,

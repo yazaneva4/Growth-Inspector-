@@ -21,17 +21,22 @@ export async function POST(req: NextRequest) {
   if (!message?.trim()) {
     return NextResponse.json({ error: "message required" }, { status: 400 });
   }
+  const channel: "email" | "sandbox" =
+    body?.channel === "email" ? "email" : "sandbox";
+  const accountExternalId = channel === "email" ? "support-inbox" : "demo-sandbox";
   const customerHandle: string =
     typeof body?.customerHandle === "string"
       ? body.customerHandle
-      : "demo_visitor";
+      : channel === "email"
+        ? "visitor@example.com"
+        : "demo_visitor";
 
   const db = createPublicClient();
   try {
     const result = await handleInbound(
       {
-        platform: "sandbox",
-        accountExternalId: "demo-sandbox",
+        platform: channel,
+        accountExternalId,
         customerHandle,
         customerName: body?.customerName,
         body: message,

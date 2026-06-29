@@ -1,10 +1,14 @@
 import { getAnalytics } from "@/lib/analytics";
+import { getCurrentContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { StatCard, Panel, BarList, SentimentBar } from "@/components/charts";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardOverview() {
-  const a = await getAnalytics(7);
+  const ctx = await getCurrentContext();
+  const client = ctx.isDemo ? undefined : await createClient();
+  const a = await getAnalytics(7, ctx.orgSlug, client);
 
   if (!a) {
     return (

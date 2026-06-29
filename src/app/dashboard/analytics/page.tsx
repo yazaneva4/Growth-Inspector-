@@ -1,11 +1,15 @@
 import { getAnalytics } from "@/lib/analytics";
+import { getCurrentContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { generateGrowthReport } from "@/lib/ai/report";
 import { Panel, BarList, SentimentBar, StatCard } from "@/components/charts";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const a = await getAnalytics(7);
+  const ctx = await getCurrentContext();
+  const client = ctx.isDemo ? undefined : await createClient();
+  const a = await getAnalytics(7, ctx.orgSlug, client);
   if (!a) {
     return (
       <div>

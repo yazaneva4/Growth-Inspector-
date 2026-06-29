@@ -90,9 +90,55 @@ export const whatsappAdapter: PlatformAdapter = {
   },
 };
 
+/**
+ * Email channel. Accepts a normalized inbound-email payload compatible with
+ * common inbound-parse providers (Postmark, SendGrid, Mailgun): { from,
+ * fromName, subject, text, to }. The customer's email address is the handle so
+ * replies thread by sender. Sending is wired to a provider's API in prod.
+ */
+export const emailAdapter: PlatformAdapter = {
+  platform: "email",
+  parseWebhook(payload: unknown): InboundMessage[] {
+    const p = (payload ?? {}) as {
+      from?: string;
+      From?: string;
+      sender?: string;
+      fromName?: string;
+      FromName?: string;
+      subject?: string;
+      Subject?: string;
+      text?: string;
+      TextBody?: string;
+      "body-plain"?: string;
+      to?: string;
+      To?: string;
+      mailbox?: string;
+    };
+    const from = p.from ?? p.From ?? p.sender;
+    const body = p.text ?? p.TextBody ?? p["body-plain"];
+    if (!from || !body) return [];
+    const subject = p.subject ?? p.Subject;
+    return [
+      {
+        platform: "email",
+        accountExternalId: p.to ?? p.To ?? p.mailbox ?? "support-inbox",
+        customerHandle: from,
+        customerName: p.fromName ?? p.FromName,
+        body: subject ? `${subject}\n\n${body}` : body,
+        receivedAt: new Date().toISOString(),
+      },
+    ];
+  },
+  async send(accountExternalId, customerHandle, body) {
+    // Wire a transactional email provider (Postmark/SendGrid/Resend) here.
+    console.log(`[email] -> ${customerHandle} from ${accountExternalId}: ${body}`);
+  },
+};
+
 const ADAPTERS: Record<string, PlatformAdapter> = {
   sandbox: sandboxAdapter,
   whatsapp: whatsappAdapter,
+  email: emailAdapter,
 };
 
 export function getAdapter(platform: SocialPlatform): PlatformAdapter {

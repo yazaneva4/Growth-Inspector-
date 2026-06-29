@@ -1,4 +1,5 @@
 import { createPublicClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface AnalyticsSummary {
   orgName: string;
@@ -33,8 +34,11 @@ const DEMO_SLUG = "demo";
 export async function getAnalytics(
   rangeDays = 7,
   orgSlug = DEMO_SLUG,
+  client?: SupabaseClient,
 ): Promise<AnalyticsSummary | null> {
-  const db = createPublicClient();
+  // Authenticated orgs pass their session client (RLS scopes to their org);
+  // the public demo uses the anon client.
+  const db = client ?? createPublicClient();
 
   let org: { id: string; name: string } | null = null;
   try {
