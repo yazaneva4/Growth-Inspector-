@@ -49,6 +49,27 @@ The two `NEXT_PUBLIC_*` values are safe to expose — the publishable key is
 protected by Row-Level Security. The dashboards work with just those two; the
 inbox responder and AI report light up once `ANTHROPIC_API_KEY` is set.
 
+## Google sign-in (one-time)
+
+1. Google Cloud Console → create an **OAuth 2.0 Client ID** (Web application).
+2. Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+3. Supabase dashboard → **Authentication → Providers → Google** → paste the
+   Client ID + Secret, enable it.
+4. Supabase → **Authentication → URL Configuration** → add your site URL and
+   `https://<your-app>.vercel.app/auth/callback` to the redirect allow-list.
+
+The "Continue with Google" button then works (it routes through
+`/auth/callback`, which already exchanges the code for a session).
+
+## Email channel (real inbound + outbound)
+
+- **Outbound replies:** set `RESEND_API_KEY` (resend.com) and `EMAIL_FROM`
+  (a verified sender on your domain). The email adapter sends via Resend; with
+  no key it dry-runs (logs) so the demo still works.
+- **Inbound email:** point your provider's inbound-parse webhook at
+  `https://<your-app>/api/webhooks/email`. The adapter accepts Postmark,
+  SendGrid and Mailgun payload shapes and threads by sender address.
+
 ## After deploy
 
 - `/dashboard` and `/dashboard/analytics` render the demo workspace immediately.
