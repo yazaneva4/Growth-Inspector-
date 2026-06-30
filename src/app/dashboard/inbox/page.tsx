@@ -1,253 +1,218 @@
-"use client";
+import Link from "next/link";
+import { getCurrentContext } from "@/lib/auth";
+import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { InboxSimulator } from "@/components/inbox-simulator";
 
-import { useState } from "react";
-import type { ResponderResult } from "@/lib/ai/responder";
+export const dynamic = "force-dynamic";
 
-type Turn =
-  | { who: "customer"; body: string }
-  | { who: "ai"; body: string; result: ResponderResult }
-  | { who: "system"; body: string };
-
-const SAMPLES = [
-  "كم سعر العود الكمبودي؟ وكم يوصل للرياض؟",
-  "3ndkم توصيل اليوم؟ ابي هديه ضروري",
-  "والله خدمتكم سيئة، الطلب تأخر اسبوع كامل 😡",
-  "Do you ship to Jeddah and what are the prices?",
-];
-
-const decisionStyle: Record<string, string> = {
-  send: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
-  draft: "bg-amber-500/15 text-amber-300 border-amber-500/40",
-  escalate: "bg-rose-500/15 text-rose-300 border-rose-500/40",
+const platformBadge: Record<string, { label: string; cls: string }> = {
+  whatsapp: { label: "WA", cls: "bg-green-500/20 text-green-300" },
+  instagram: { label: "IG", cls: "bg-pink-500/20 text-pink-300" },
+  x: { label: "X", cls: "bg-slate-500/20 text-slate-200" },
+  snapchat: { label: "SC", cls: "bg-yellow-500/20 text-yellow-300" },
+  tiktok: { label: "TT", cls: "bg-cyan-500/20 text-cyan-300" },
+  email: { label: "@", cls: "bg-sky-500/20 text-sky-300" },
+  sandbox: { label: "•", cls: "bg-slate-500/20 text-slate-300" },
 };
 
-export default function InboxSimulator() {
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [input, setInput] = useState("");
-  const [mode, setMode] = useState<"autonomous" | "approval">("autonomous");
-  const [persist, setPersist] = useState(false);
-  const [channel, setChannel] = useState<"sandbox" | "email">("sandbox");
-  const [loading, setLoading] = useState(false);
+function timeAgo(iso: string) {
+  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.round(hrs / 24)}d`;
+}
 
-  // A stable customer handle per session so persisted turns thread together.
-  const [handle] = useState(
-    () => "demo_" + Math.random().toString(36).slice(2, 8),
-  );
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string; test?: string }>;
+}) {
+  const sp = await searchParams;
+  const ctx = await getCurrentContext();
+  const db = ctx.isDemo ? createPublicClient() : await createClient();
 
-  async function send(message: string) {
-    if (!message.trim() || loading) return;
-    setInput("");
-    const history = turns
-      .filter((t) => t.who !== "system")
-      .map((t) => ({ author: t.who, body: t.body }));
-    setTurns((t) => [...t, { who: "customer", body: message }]);
-    setLoading(true);
-    try {
-      // "Save to workspace" persists to Supabase via the demo pipeline;
-      // otherwise run the stateless live demo.
-      const endpoint = persist ? "/api/inbox" : "/api/simulate";
-      const payload = persist
-        ? {
-            message,
-            channel,
-            customerHandle:
-              channel === "email" ? `${handle}@example.com` : handle,
-          }
-        : { message, replyMode: mode, history };
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setTurns((t) => [
-          ...t,
-          { who: "system", body: data.error ?? "Error" },
-        ]);
-        return;
-      }
-      const result = (persist ? data.result : data) as ResponderResult;
-      if (!result) {
-        setTurns((t) => [...t, { who: "system", body: "No result returned" }]);
-        return;
-      }
-      if (result.decision === "escalate") {
-        setTurns((t) => [
-          ...t,
-          {
-            who: "system",
-            body:
-              "Escalated to a human" +
-              (result.escalation_reason
-                ? ` (${result.escalation_reason.replace(/_/g, " ")})`
-                : "") +
-              (result.reply ? `. Draft saved: “${result.reply}”` : "."),
-          },
-        ]);
-      } else {
-        setTurns((t) => [...t, { who: "ai", body: result.reply, result }]);
-      }
-    } catch {
-      setTurns((t) => [...t, { who: "system", body: "Network error" }]);
-    } finally {
-      setLoading(false);
+  const { data: org } = await db
+    .from("organizations")
+    .select("id")
+    .eq("slug", ctx.orgSlug)
+    .maybeSingle();
+
+  let conversations: Array<{
+    id: string;
+    customer_name: string | null;
+    customer_handle: string;
+    platform: string;
+    intent: string | null;
+    status: string;
+    lead_score: number | null;
+    last_message_at: string;
+  }> = [];
+  if (org) {
+    const { data } = await db
+      .from("conversations")
+      .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at")
+      .eq("org_id", org.id)
+      .order("last_message_at", { ascending: false })
+      .limit(50);
+    conversations = data ?? [];
+  }
+
+  const selectedId = sp.c;
+  const showTester = sp.test === "1" || (!selectedId && conversations.length === 0);
+
+  let messages: Array<{
+    id: string;
+    author: string;
+    direction: string;
+    body: string;
+    ai_confidence: number | null;
+    created_at: string;
+  }> = [];
+  let selected = conversations.find((c) => c.id === selectedId) ?? null;
+  if (selectedId && org) {
+    const { data } = await db
+      .from("messages")
+      .select("id, author, direction, body, ai_confidence, created_at")
+      .eq("conversation_id", selectedId)
+      .order("created_at", { ascending: true });
+    messages = data ?? [];
+    if (!selected) {
+      const { data: c } = await db
+        .from("conversations")
+        .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at")
+        .eq("id", selectedId)
+        .maybeSingle();
+      selected = c ?? null;
     }
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Inbox · live demo</h1>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-slate-300">
-            <input
-              type="checkbox"
-              checked={persist}
-              onChange={(e) => setPersist(e.target.checked)}
-              className="accent-emerald-500"
-            />
-            Save to workspace
-          </label>
-          {persist && (
-            <div className="flex rounded-lg border border-slate-700 text-xs">
-              {(["sandbox", "email"] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setChannel(c)}
-                  className={`px-3 py-1.5 ${
-                    channel === c
-                      ? "bg-sky-500 text-slate-950"
-                      : "text-slate-300"
-                  }`}
-                >
-                  {c === "sandbox" ? "Social" : "Email"}
-                </button>
-              ))}
+        <div>
+          <h1 className="text-2xl font-bold">Inbox</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            {conversations.length} conversation{conversations.length === 1 ? "" : "s"} · updates live
+          </p>
+        </div>
+        <Link
+          href={showTester ? "/dashboard/inbox" : "/dashboard/inbox?test=1"}
+          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+        >
+          {showTester ? "← Back to inbox" : "✨ Test the AI"}
+        </Link>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+        {/* Conversation list */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-2">
+          {conversations.length === 0 ? (
+            <p className="p-6 text-center text-sm text-slate-500">
+              No conversations yet. Use “Test the AI” to create some.
+            </p>
+          ) : (
+            <div className="max-h-[70vh] space-y-1 overflow-auto">
+              {conversations.map((c) => {
+                const badge = platformBadge[c.platform] ?? platformBadge.sandbox;
+                const active = c.id === selectedId;
+                return (
+                  <Link
+                    key={c.id}
+                    href={`/dashboard/inbox?c=${c.id}`}
+                    className={`block rounded-xl p-3 ${
+                      active ? "bg-slate-800" : "hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                        <span className="truncate text-sm font-medium" dir="auto">
+                          {c.customer_name ?? c.customer_handle}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">
+                        {timeAgo(c.last_message_at)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      {c.intent && (
+                        <span className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                          {c.intent}
+                        </span>
+                      )}
+                      {c.status === "escalated" && (
+                        <span className="rounded border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-300">
+                          escalated
+                        </span>
+                      )}
+                      {(c.lead_score ?? 0) >= 80 && (
+                        <span className="rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] text-emerald-300">
+                          hot lead
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
-          <div className="flex rounded-lg border border-slate-700 text-xs">
-            {(["autonomous", "approval"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                disabled={persist}
-                className={`px-3 py-1.5 capitalize disabled:opacity-40 ${
-                  mode === m ? "bg-emerald-500 text-slate-950" : "text-slate-300"
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
         </div>
-      </div>
-      <p className="mt-1 text-sm text-slate-400">
-        Type as a customer (Arabic, dialect, Arabizi or English). The responder
-        analyzes, applies guardrails, and replies or escalates.
-        {persist && (
-          <span className="text-emerald-400">
-            {" "}
-            Saving to the demo workspace — check the{" "}
-            <a href="/dashboard/analytics" className="underline">
-              Inspector report
-            </a>
-            .
-          </span>
-        )}
-      </p>
 
-      <div className="mt-5 min-h-[320px] space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-        {turns.length === 0 && (
-          <p className="py-12 text-center text-sm text-slate-500">
-            Start by sending a message below 👇
-          </p>
-        )}
-        {turns.map((t, i) => {
-          if (t.who === "system")
-            return (
-              <div key={i} className="text-center text-xs text-rose-300">
-                ⚠ {t.body}
+        {/* Right pane: tester, thread, or empty */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          {showTester ? (
+            <InboxSimulator />
+          ) : selected ? (
+            <div>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="font-semibold" dir="auto">
+                  {selected.customer_name ?? selected.customer_handle}
+                  <span className="ml-2 text-xs text-slate-500">
+                    {selected.platform}
+                  </span>
+                </div>
+                {selected.status === "escalated" && (
+                  <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-300">
+                    escalated
+                  </span>
+                )}
               </div>
-            );
-          const mine = t.who === "customer";
-          return (
-            <div
-              key={i}
-              className={`flex ${mine ? "justify-start" : "justify-end"}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                  mine
-                    ? "bg-slate-800 text-slate-100"
-                    : "bg-emerald-500 text-slate-950"
-                }`}
-                dir="auto"
-              >
-                {t.body}
-                {t.who === "ai" && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-                    <span
-                      className={`rounded border px-1.5 py-0.5 ${decisionStyle[t.result.decision]}`}
-                    >
-                      {t.result.decision} ·{" "}
-                      {(t.result.confidence * 100).toFixed(0)}%
-                    </span>
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-300">
-                      {t.result.analysis.intent}
-                    </span>
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-300">
-                      {t.result.analysis.language}
-                    </span>
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-300">
-                      lead {t.result.analysis.lead_score}
-                    </span>
-                  </div>
+              <div className="mt-4 space-y-3">
+                {messages.map((m) => {
+                  const inbound = m.direction === "inbound";
+                  return (
+                    <div key={m.id} className={`flex ${inbound ? "justify-start" : "justify-end"}`}>
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                          inbound ? "bg-slate-800 text-slate-100" : "bg-emerald-500 text-slate-950"
+                        }`}
+                        dir="auto"
+                      >
+                        {m.body}
+                        {m.author === "ai" && m.ai_confidence != null && (
+                          <div className="mt-1 text-[10px] opacity-70">
+                            AI · {(m.ai_confidence * 100).toFixed(0)}% confidence
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {messages.length === 0 && (
+                  <p className="text-sm text-slate-500">No messages.</p>
                 )}
               </div>
             </div>
-          );
-        })}
-        {loading && (
-          <div className="text-right text-xs text-slate-500">thinking…</div>
-        )}
+          ) : (
+            <p className="py-16 text-center text-sm text-slate-500">
+              Select a conversation, or hit “Test the AI”.
+            </p>
+          )}
+        </div>
       </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {SAMPLES.map((s) => (
-          <button
-            key={s}
-            onClick={() => send(s)}
-            dir="auto"
-            className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
-          >
-            {s.length > 32 ? s.slice(0, 32) + "…" : s}
-          </button>
-        ))}
-      </div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-        className="mt-3 flex gap-2"
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          dir="auto"
-          placeholder="Write a customer message…"
-          className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
-        >
-          Send
-        </button>
-      </form>
     </div>
   );
 }
