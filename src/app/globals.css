@@ -22,5 +22,17 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Latin + Arabic-native fallback so Khaleeji/MSA text renders cleanly. */
+  font-family: var(--font-geist-sans), var(--font-arabic), system-ui, sans-serif;
+}
+
+/* Arabic glyphs use the Arabic typeface even inside mixed/auto-dir blocks. */
+:lang(ar),
+[dir="rtl"] {
+  font-family: var(--font-arabic), var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Keep bidirectional content readable in tables and flex rows. */
+[dir="auto"] {
+  unicode-bidi: plaintext;
 }

@@ -22,10 +22,20 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className="text-2xl font-bold">Growth Inspector report</h1>
-      <p className="mt-1 text-sm text-slate-400">
-        {a.orgName} · weekly analyst · last {a.rangeDays} days
-      </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Growth Inspector report</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            {a.orgName} · weekly analyst · last {a.rangeDays} days
+          </p>
+        </div>
+        <a
+          href="/api/export"
+          className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
+        >
+          ⬇ Export CSV
+        </a>
+      </div>
 
       {/* AI narrative report */}
       <div className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-6">
