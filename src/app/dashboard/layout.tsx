@@ -8,6 +8,7 @@ import { PLANS } from "@/lib/plans";
 const nav = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/analytics", label: "Inspector report" },
+  { href: "/dashboard/trends", label: "Trend radar" },
   { href: "/dashboard/inbox", label: "Inbox" },
   { href: "/dashboard/escalations", label: "Escalations" },
   { href: "/dashboard/settings", label: "Brand voice" },
