@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
+import { TopBar } from "@/components/top-bar";
 import { PLANS } from "@/lib/plans";
 
 const nav = [
@@ -24,10 +25,11 @@ export default async function DashboardLayout({
   const db = ctx.isDemo ? createPublicClient() : await createClient();
   const { data: org } = await db
     .from("organizations")
-    .select("plan")
+    .select("plan, name")
     .eq("slug", ctx.orgSlug)
     .maybeSingle();
   const plan = PLANS.find((p) => p.tier === org?.plan) ?? PLANS[0];
+  const workspaceName = org?.name ?? "Workspace";
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
@@ -89,7 +91,10 @@ export default async function DashboardLayout({
           )}
         </div>
       </aside>
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1">
+        <TopBar workspaceName={workspaceName} email={ctx.email} />
+        <div className="p-8">{children}</div>
+      </main>
     </div>
   );
 }
