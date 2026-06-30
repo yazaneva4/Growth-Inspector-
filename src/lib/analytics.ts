@@ -22,6 +22,20 @@ export interface AnalyticsSummary {
     lead_score: number;
     intent: string | null;
   }[];
+  recent: {
+    customer: string;
+    handle: string;
+    platform: string;
+    intent: string | null;
+    lead_score: number;
+    last_message_at: string;
+  }[];
+  escalationsList: {
+    reason: string;
+    customer: string;
+    language: string | null;
+    draft: string | null;
+  }[];
 }
 
 const DEMO_SLUG = "demo";
@@ -63,7 +77,7 @@ export async function getAnalytics(
     [convsRes, msgsRes, escRes] = await Promise.all([
       db
         .from("conversations")
-        .select("intent, sentiment, language, lead_score, status, customer_name, customer_handle, created_at")
+        .select("intent, sentiment, language, lead_score, status, customer_name, customer_handle, platform, last_message_at, created_at")
         .eq("org_id", org.id)
         .gte("created_at", since),
       db
@@ -141,6 +155,50 @@ export async function getAnalytics(
       intent: c.intent,
     }));
 
+  const recent = [...conversations]
+    .sort((a, b) =>
+      (b.last_message_at ?? b.created_at).localeCompare(
+        a.last_message_at ?? a.created_at,
+      ),
+    )
+    .slice(0, 5)
+    .map((c) => ({
+      customer: c.customer_name ?? c.customer_handle,
+      handle: c.customer_handle,
+      platform: c.platform ?? "sandbox",
+      intent: c.intent,
+      lead_score: c.lead_score ?? 0,
+      last_message_at: c.last_message_at ?? c.created_at,
+    }));
+
+  // Escalation details for the preview card.
+  let escalationsList: AnalyticsSummary["escalationsList"] = [];
+  try {
+    const { data: escRows } = await db
+      .from("escalations")
+      .select(
+        "reason, draft, conversations(customer_name, customer_handle, language)",
+      )
+      .eq("org_id", org.id)
+      .order("created_at", { ascending: false })
+      .limit(4);
+    escalationsList = (escRows ?? []).map((e) => {
+      const c = (e.conversations ?? {}) as {
+        customer_name?: string;
+        customer_handle?: string;
+        language?: string;
+      };
+      return {
+        reason: e.reason as string,
+        customer: c.customer_name ?? c.customer_handle ?? "Customer",
+        language: c.language ?? null,
+        draft: (e.draft as string | null) ?? null,
+      };
+    });
+  } catch {
+    escalationsList = [];
+  }
+
   return {
     orgName: org.name,
     rangeDays,
@@ -157,5 +215,7 @@ export async function getAnalytics(
     languages,
     volumeByDay,
     topLeads,
+    recent,
+    escalationsList,
   };
 }
