@@ -3,7 +3,6 @@ import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { TopBar } from "@/components/top-bar";
-import { PLANS } from "@/lib/plans";
 
 const nav = [
   { href: "/dashboard", label: "Overview" },
@@ -14,7 +13,6 @@ const nav = [
   { href: "/dashboard/escalations", label: "Escalations" },
   { href: "/dashboard/settings", label: "Brand voice" },
   { href: "/dashboard/team", label: "Team" },
-  { href: "/dashboard/plans", label: "Plans" },
 ];
 
 export default async function DashboardLayout({
@@ -27,10 +25,9 @@ export default async function DashboardLayout({
   const db = ctx.isDemo ? createPublicClient() : await createClient();
   const { data: org } = await db
     .from("organizations")
-    .select("plan, name")
+    .select("name")
     .eq("slug", ctx.orgSlug)
     .maybeSingle();
-  const plan = PLANS.find((p) => p.tier === org?.plan) ?? PLANS[0];
   const workspaceName = org?.name ?? "Workspace";
 
   return (
@@ -53,20 +50,6 @@ export default async function DashboardLayout({
             </Link>
           ))}
         </nav>
-
-        {/* Plan widget */}
-        <Link
-          href="/dashboard/plans"
-          className="mt-4 block rounded-2xl border border-slate-800 bg-gradient-to-b from-violet-500/10 to-slate-900/60 p-4 hover:border-violet-500/40"
-        >
-          <div className="text-sm font-semibold">{plan.name} plan</div>
-          <div className="mt-0.5 text-xs text-slate-400">
-            {plan.price.toLocaleString()} SAR / mo
-          </div>
-          <div className="mt-3 rounded-lg bg-emerald-500 px-3 py-1.5 text-center text-xs font-semibold text-slate-950">
-            {plan.tier === "agency" ? "Manage plan" : "Upgrade"}
-          </div>
-        </Link>
 
         <div className="mt-4 border-t border-slate-800 pt-4 text-xs">
           {ctx.email ? (

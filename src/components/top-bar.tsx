@@ -56,12 +56,6 @@ export function TopBar({
             >
               Invite employees →
             </a>
-            <a
-              href="/dashboard/plans"
-              className="block rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-800"
-            >
-              Manage plan →
-            </a>
           </div>
         )}
       </div>
