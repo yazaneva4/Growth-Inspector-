@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentContext } from "@/lib/auth";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 const nav = [
   { href: "/dashboard", label: "Overview" },
@@ -21,9 +22,12 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <aside className="flex w-60 shrink-0 flex-col border-r border-slate-800 p-5">
-        <Link href="/" className="text-lg font-bold">
-          Growth<span className="text-emerald-400"> Inspector</span>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold">
+            Growth<span className="text-emerald-400"> Inspector</span>
+          </Link>
+          <RealtimeRefresh />
+        </div>
         <nav className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((n) => (
             <Link
