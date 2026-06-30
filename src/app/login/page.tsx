@@ -22,7 +22,16 @@ export default function LoginPage() {
       provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback` },
     });
-    if (error) setError(error.message);
+    if (error) {
+      // Friendly message when the provider hasn't been enabled in Supabase yet.
+      if (/provider is not enabled/i.test(error.message)) {
+        setError(
+          "Google sign-in isn't enabled yet. Use email + password below, or ask an admin to enable Google in Supabase.",
+        );
+      } else {
+        setError(error.message);
+      }
+    }
   }
 
   async function submit(e: React.FormEvent) {

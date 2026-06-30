@@ -24,13 +24,18 @@ export function PlanCards({
     setError(null);
     setBusy(tier);
     try {
-      const res = await fetch("/api/plan", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: tier }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
+      if (data.url) {
+        // Redirect to the Moyasar hosted payment page.
+        window.location.assign(data.url);
+        return;
+      }
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to change plan");

@@ -24,6 +24,10 @@ export async function getCurrentContext(): Promise<CurrentContext> {
     return { email: null, orgSlug: "demo", isDemo: true };
   }
 
+  // Accept any pending team invites for this user's email (joins their
+  // employer's workspace instead of creating a new one).
+  await supabase.rpc("accept_pending_invites");
+
   // Find an existing membership/org for this user.
   const { data: membership } = await supabase
     .from("memberships")

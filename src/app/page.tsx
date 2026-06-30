@@ -29,6 +29,9 @@ export default function Home() {
           Growth<span className="text-emerald-400"> Inspector</span>
         </span>
         <nav className="flex items-center gap-4 text-sm">
+          <Link href="/careers" className="text-slate-300 hover:text-white">
+            Careers
+          </Link>
           <Link href="/login" className="text-slate-300 hover:text-white">
             Sign in
           </Link>
@@ -129,7 +132,12 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-slate-800 py-8 text-center text-sm text-slate-500">
-        Growth Inspector — autonomous social customer engagement for Saudi Arabia.
+        <Link href="/careers" className="text-slate-400 hover:text-white">
+          Careers — work in the Saudi growth space →
+        </Link>
+        <div className="mt-2">
+          Growth Inspector — autonomous social customer engagement for Saudi Arabia.
+        </div>
       </footer>
     </main>
   );
