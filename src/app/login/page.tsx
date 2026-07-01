@@ -40,6 +40,16 @@ export default function LoginPage() {
     }
   }
 
+  function friendlyError(message: string): string {
+    if (/rate limit/i.test(message)) {
+      return "Too many attempts right now — please wait a minute and try again.";
+    }
+    if (/already.*registered|already.*exists/i.test(message)) {
+      return "An account with this email already exists — sign in instead.";
+    }
+    return message;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -48,32 +58,38 @@ export default function LoginPage() {
     const supabase = createClient();
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const { data: signupData, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: `${location.origin}/auth/callback` },
         });
         if (error) throw error;
-        if (data.session) {
+        if (signupData.session) {
           router.push("/dashboard");
           router.refresh();
         } else {
           setNotice(
-            "Account created. If email confirmation is on, check your inbox — otherwise sign in now.",
+            "Account created. Check your email for a confirmation link, then sign in.",
           );
           setMode("signin");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        let { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error && /email not confirmed/i.test(error.message)) {
+          // Self-heal any account stuck unconfirmed, then retry once.
+          await fetch("/api/auth/force-confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          }).catch(() => {});
+          ({ error } = await supabase.auth.signInWithPassword({ email, password }));
+        }
         if (error) throw error;
         router.push("/dashboard");
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      setError(friendlyError(err instanceof Error ? err.message : "Authentication failed"));
     } finally {
       setBusy(false);
     }

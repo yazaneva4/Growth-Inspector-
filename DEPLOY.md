@@ -42,12 +42,37 @@ vercel --prod
 | `NEXT_PUBLIC_SUPABASE_URL` | no | `https://ttjzmmqalbfeybysmqko.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | no (publishable) | `sb_publishable_LztXbrEa4Evw12Iehs4H5A_ivQU-ZOz` |
 | `ANTHROPIC_API_KEY` | **yes** | your Anthropic key — enables the responder + the AI report |
-| `SUPABASE_SERVICE_ROLE_KEY` | **yes** | from Supabase → Project Settings → API → service_role (only needed for live platform webhook ingestion; the demo uses the publishable key) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **yes** | from Supabase → Project Settings → API → service_role. Needed for live platform webhook ingestion, and for the sign-in self-heal below |
 | `META_VERIFY_TOKEN` | yes | any string; must match your Meta webhook config |
 
 The two `NEXT_PUBLIC_*` values are safe to expose — the publishable key is
 protected by Row-Level Security. Email + password login works with just those
 two; the AI responder lights up once `ANTHROPIC_API_KEY` is set.
+
+## Fix signup: confirmation emails going to localhost / rate-limited
+
+Every fresh Supabase project defaults its Auth **Site URL** to
+`http://localhost:3000`. Until you change it, confirmation-email links point
+at localhost (broken for anyone but local dev), and repeated failed attempts
+can trip Supabase's shared-mailer rate limit. This is a one-time Supabase
+dashboard fix — there's no API for it, so it can't be automated:
+
+**Authentication → URL Configuration:**
+- **Site URL** → `https://<your-app>.vercel.app`
+- **Redirect URLs** → add `https://<your-app>.vercel.app/auth/callback` and
+  `https://<your-app>.vercel.app/**`
+
+Once set, confirmation links resolve correctly and email verification keeps
+working as intended — signups do still require confirming their email
+before they can sign in, which is the correct behavior for a real,
+multi-tenant product.
+
+With `SUPABASE_SERVICE_ROLE_KEY` set, sign-in also **self-heals** any single
+account that got stuck unconfirmed before this was fixed (e.g. from testing
+before the Site URL was set): `/api/auth/force-confirm` only ever confirms an
+account after verifying the caller supplied the *correct password* for it
+(a real sign-in attempt against the account, not a bare email lookup) — so it
+can't be used to confirm an account you don't control.
 
 ## Google sign-in (one-time, optional)
 
