@@ -35,10 +35,10 @@ export default function Home() {
             Sign in
           </Link>
           <Link
-            href="/login"
+            href="/dashboard"
             className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400"
           >
-            Get started
+            Dashboard
           </Link>
         </nav>
       </header>
@@ -57,16 +57,16 @@ export default function Home() {
         </p>
         <div className="mt-8 flex justify-center gap-4">
           <Link
-            href="/login"
+            href="/dashboard"
             className="rounded-lg bg-emerald-500 px-6 py-3 font-semibold text-slate-950 hover:bg-emerald-400"
           >
-            Get started
+            Open the dashboard
           </Link>
           <Link
-            href="/careers"
+            href="/dashboard/inbox"
             className="rounded-lg border border-slate-700 px-6 py-3 font-semibold text-slate-200 hover:bg-slate-800"
           >
-            Careers
+            See the inbox
           </Link>
         </div>
       </section>
