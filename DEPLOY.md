@@ -46,10 +46,13 @@ vercel --prod
 | `META_VERIFY_TOKEN` | yes | any string; must match your Meta webhook config |
 
 The two `NEXT_PUBLIC_*` values are safe to expose — the publishable key is
-protected by Row-Level Security. The dashboards work with just those two; the
-inbox responder and AI report light up once `ANTHROPIC_API_KEY` is set.
+protected by Row-Level Security. Email + password login works with just those
+two; the AI responder lights up once `ANTHROPIC_API_KEY` is set.
 
-## Google sign-in (one-time)
+## Google sign-in (one-time, optional)
+
+The "Continue with Google" button is hidden by default so users never hit a
+"provider is not enabled" error. To turn it on:
 
 1. Google Cloud Console → create an **OAuth 2.0 Client ID** (Web application).
 2. Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
@@ -57,9 +60,9 @@ inbox responder and AI report light up once `ANTHROPIC_API_KEY` is set.
    Client ID + Secret, enable it.
 4. Supabase → **Authentication → URL Configuration** → add your site URL and
    `https://<your-app>.vercel.app/auth/callback` to the redirect allow-list.
-
-The "Continue with Google" button then works (it routes through
-`/auth/callback`, which already exchanges the code for a session).
+5. Set `NEXT_PUBLIC_GOOGLE_ENABLED=true` in Vercel and redeploy — the button
+   appears on `/login` (it routes through `/auth/callback`, which already
+   exchanges the code for a session).
 
 ## Email channel (real inbound + outbound)
 
@@ -72,6 +75,8 @@ The "Continue with Google" button then works (it routes through
 
 ## After deploy
 
-- `/dashboard` and `/dashboard/analytics` render the demo workspace immediately.
-- In `/dashboard/inbox`, toggle **Save to workspace** to persist a live
-  conversation — it appears in the Inspector report.
+- `/login` — sign up or sign in with email + password.
+- `/careers` — public apply form.
+- Real inbound traffic reaches the responder via `/api/webhooks/[platform]`
+  (e.g. `/api/webhooks/whatsapp`, `/api/webhooks/email`) once the corresponding
+  provider webhook is configured.

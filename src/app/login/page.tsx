@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup";
@@ -54,7 +55,7 @@ export default function LoginPage() {
         });
         if (error) throw error;
         if (data.session) {
-          router.push("/dashboard");
+          router.push("/");
           router.refresh();
         } else {
           setNotice(
@@ -68,7 +69,7 @@ export default function LoginPage() {
           password,
         });
         if (error) throw error;
-        router.push("/dashboard");
+        router.push("/");
         router.refresh();
       }
     } catch (err) {
@@ -159,12 +160,12 @@ export default function LoginPage() {
           {notice && <p className="text-xs text-emerald-400">{notice}</p>}
         </form>
 
-        <a
-          href="/dashboard"
+        <Link
+          href="/"
           className="mt-4 block text-center text-xs text-slate-500 hover:text-slate-300"
         >
-          Explore the demo workspace →
-        </a>
+          ← Back home
+        </Link>
       </div>
     </main>
   );

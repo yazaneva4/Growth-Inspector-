@@ -14,30 +14,25 @@ See [`SPEC.md`](./SPEC.md) for the full product & technical vision.
 
 ## What's built
 
+The app is currently pared back to its core: **real auth** and the **backend
+responder pipeline**. No dashboard UI is mounted yet.
+
 | Area | Where |
 |---|---|
 | Multi-tenant schema + RLS | `supabase/migrations/` |
+| Email + password auth (sign up / sign in / sign out, Google-ready) | `src/app/login/`, `src/app/auth/` |
 | AI responder (analyze → guardrail → reply → decide) | `src/lib/ai/responder.ts` |
-| Analytics aggregation | `src/lib/analytics.ts` |
-| Growth Inspector weekly AI report (Opus) | `src/lib/ai/report.ts` |
 | Ingestion pipeline (inbound → AI → send/escalate) | `src/lib/orchestrator.ts` |
-| Platform adapters (sandbox + WhatsApp/Instagram structure) | `src/lib/platforms/adapter.ts` |
+| Platform adapters (sandbox, WhatsApp, email) | `src/lib/platforms/adapter.ts` |
 | Webhook ingestion | `src/app/api/webhooks/[platform]/route.ts` |
-| Live responder demo API (no DB needed) | `src/app/api/simulate/route.ts` |
-| Landing + dashboard + analytics + live inbox | `src/app/` |
+| Public careers / apply page | `src/app/careers/`, `src/app/api/careers/` |
+| Integration health check | `src/app/api/health/route.ts` |
 
-## Supabase
+## Auth
 
-A live project is connected and the schema + a demo workspace are seeded.
-The dashboards (`/dashboard`, `/dashboard/analytics`, `/dashboard/escalations`)
-read the public **demo workspace** (org slug `demo`) through RLS using only the
-publishable key — real tenants stay isolated by membership-based policies.
-
-- Schema & policies: `supabase/migrations/0001..0003`
-- Demo data: `supabase/seed.sql`
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set in
-  `.env.local` (gitignored). Add `SUPABASE_SERVICE_ROLE_KEY` for webhook
-  ingestion and `ANTHROPIC_API_KEY` for the responder + AI report.
+Email + password is the working login (`/login` → sign up or sign in). Google
+sign-in is wired but hidden until you enable the provider in Supabase
+**and** set `NEXT_PUBLIC_GOOGLE_ENABLED=true`.
 
 ## The responder pipeline
 
@@ -55,18 +50,13 @@ npm install
 npm run dev
 ```
 
-- With only `ANTHROPIC_API_KEY` set, the **Inbox live demo**
-  (`/dashboard/inbox`) works end-to-end — type as a customer in Arabic,
-  dialect, Arabizi or English and watch it analyze, decide, and reply.
-- Add the Supabase keys to enable auth and the full DB-backed pipeline.
-
 ## Environment
 
 See [`.env.example`](./.env.example): Supabase URL/keys, `ANTHROPIC_API_KEY`,
-and `META_VERIFY_TOKEN` for webhook verification.
+`META_VERIFY_TOKEN` for webhook verification, and `NEXT_PUBLIC_GOOGLE_ENABLED`.
 
 ## Roadmap
 
-Phase 1 (foundation + MVP responder) is in place. Next: dialect eval loop,
-the Growth Inspector analytics/reports, and live platform adapters
-(WhatsApp + Instagram first). See `SPEC.md` §10.
+The multi-tenant schema, responder engine, and webhook ingestion are in place.
+See `SPEC.md` for the full product vision — a dashboard UI is the next layer
+to build on top of this foundation.
