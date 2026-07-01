@@ -270,8 +270,52 @@ function escapeXml(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** Builds the TwiML response: speak each line, then gather or hang up. */
-export function buildTwiml(turn: VoiceTurn, gatherActionUrl: string): string {
+/**
+ * When set, listening switches from Twilio's built-in speech recognition to
+ * recording the caller + transcribing with OpenAI Whisper — meaningfully
+ * better accuracy on Khaleeji/Najdi dialect and Arabic/English code-switching.
+ * Downloading a Twilio recording requires Basic Auth with the Account SID.
+ */
+const WHISPER_ENABLED = Boolean(
+  process.env.OPENAI_API_KEY &&
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN,
+);
+
+/** Downloads a Twilio call recording and transcribes it with Whisper. */
+export async function transcribeWithWhisper(recordingUrl: string): Promise<string> {
+  const sid = process.env.TWILIO_ACCOUNT_SID!;
+  const token = process.env.TWILIO_AUTH_TOKEN!;
+  const basicAuth = Buffer.from(`${sid}:${token}`).toString("base64");
+
+  const audioRes = await fetch(`${recordingUrl}.mp3`, {
+    headers: { Authorization: `Basic ${basicAuth}` },
+  });
+  if (!audioRes.ok) {
+    throw new Error(`Failed to fetch Twilio recording: ${audioRes.status}`);
+  }
+  const audioBlob = await audioRes.blob();
+
+  const form = new FormData();
+  form.append("file", audioBlob, "recording.mp3");
+  form.append("model", "whisper-1");
+  // No `language` param — let Whisper auto-detect Arabic/English/code-switched
+  // callers rather than biasing toward one.
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`Whisper transcription failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { text?: string };
+  return data.text ?? "";
+}
+
+/** Builds the TwiML response: speak each line, then listen or hang up. */
+export function buildTwiml(turn: VoiceTurn, actionUrl: string): string {
   const says = turn.say
     .map(({ text, lang }) => {
       const voice = lang === "ar" ? `voice="Polly.Zeina" language="arb"` : `language="en-US"`;
@@ -283,5 +327,9 @@ export function buildTwiml(turn: VoiceTurn, gatherActionUrl: string): string {
     return `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  ${says}\n  <Hangup/>\n</Response>`;
   }
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  ${says}\n  <Gather input="speech" action="${escapeXml(gatherActionUrl)}" method="POST" language="ar-SA" speechTimeout="auto" timeout="6"/>\n</Response>`;
+  const listen = WHISPER_ENABLED
+    ? `<Record action="${escapeXml(actionUrl)}" method="POST" maxLength="30" timeout="3" playBeep="false" trim="trim-silence"/>`
+    : `<Gather input="speech" action="${escapeXml(actionUrl)}" method="POST" language="ar-SA" speechTimeout="auto" timeout="6"/>`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  ${says}\n  ${listen}\n</Response>`;
 }

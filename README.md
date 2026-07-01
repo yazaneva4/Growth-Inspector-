@@ -38,13 +38,19 @@ sign-in is wired but hidden until you enable the provider in Supabase
 
 ## Voice calls
 
-Phone calls are answered by the same AI: Twilio provides the telephony,
-speech-to-text (`<Gather input="speech">`), and text-to-speech (`<Say>`,
-Arabic via Amazon Polly + English) — no custom WebSocket/streaming server
-needed, so it runs cleanly on serverless. Each turn is a stateless webhook
-request; conversation state lives in the same `conversations`/`messages`
-tables as every other channel, so brand-voice, guardrails, and escalation
-all apply unchanged. See [`DEPLOY.md`](./DEPLOY.md#voice-calls-twilio) for setup.
+Phone calls are answered by the same AI: Twilio provides the telephony and
+text-to-speech (`<Say>`, Arabic via Amazon Polly + English) — no custom
+WebSocket/streaming server needed, so it runs cleanly on serverless. Each turn
+is a stateless webhook request; conversation state lives in the same
+`conversations`/`messages` tables as every other channel, so brand-voice,
+guardrails, and escalation all apply unchanged.
+
+Speech recognition defaults to Twilio's built-in `<Gather input="speech">`.
+Set `OPENAI_API_KEY` + `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` to switch to
+recording + **OpenAI Whisper** transcription instead — meaningfully better
+accuracy on Saudi dialect and Arabic/English code-switching, same call flow.
+
+See [`DEPLOY.md`](./DEPLOY.md#voice-calls-twilio) for setup.
 
 ## The responder pipeline
 

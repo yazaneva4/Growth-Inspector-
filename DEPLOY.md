@@ -107,6 +107,23 @@ Every call is stored exactly like the other channels — a `conversations` row
 (platform `call`) with `messages` for each turn — so the existing responder
 guardrails, brand-voice settings, and escalation logic all apply unchanged.
 
+### Better transcription with Whisper (optional)
+
+Twilio's built-in speech recognition works out of the box, but its Saudi
+dialect accuracy is inconsistent. Switch to **OpenAI Whisper** for meaningfully
+better transcription of Khaleeji/Najdi dialect and Arabic/English
+code-switching:
+
+1. Set `TWILIO_ACCOUNT_SID` (Twilio console → Account → Account SID) and
+   `TWILIO_AUTH_TOKEN` (already set above) — needed to download the call
+   recording.
+2. Set `OPENAI_API_KEY` (platform.openai.com → API keys).
+3. Redeploy. With all three set, calls automatically switch from
+   `<Gather input="speech">` to recording each turn (`<Record>`) and
+   transcribing it via Whisper before the AI responds — no other change to
+   the call flow. Check `/api/health` → `whisper_transcription: true` to
+   confirm it's active.
+
 ## After deploy
 
 - `/login` — sign up or sign in with email + password.

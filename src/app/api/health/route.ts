@@ -16,6 +16,11 @@ export async function GET() {
       resend_email: has(process.env.RESEND_API_KEY), // email replies
       meta_verify_token: has(process.env.META_VERIFY_TOKEN), // WhatsApp/IG webhooks
       twilio_auth_token: has(process.env.TWILIO_AUTH_TOKEN), // voice webhook signature verification
+      twilio_account_sid: has(process.env.TWILIO_ACCOUNT_SID), // needed for Whisper recording download
+      whisper_transcription:
+        has(process.env.OPENAI_API_KEY) &&
+        has(process.env.TWILIO_ACCOUNT_SID) &&
+        has(process.env.TWILIO_AUTH_TOKEN), // true = calls use Whisper instead of Twilio's built-in ASR
     },
     note: "Booleans only — no secret values are exposed. Google sign-in is enabled in the Supabase dashboard, not via env vars.",
   });
