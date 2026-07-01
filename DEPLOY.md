@@ -73,10 +73,44 @@ The "Continue with Google" button is hidden by default so users never hit a
   `https://<your-app>/api/webhooks/email`. The adapter accepts Postmark,
   SendGrid and Mailgun payload shapes and threads by sender address.
 
+## Voice calls (Twilio)
+
+The AI can answer phone calls: it listens (Twilio's built-in speech
+recognition), thinks (the same responder engine as the other channels, with a
+short-spoken-reply style), and talks back (Twilio text-to-speech, Arabic +
+English). No custom telephony/WebSocket infrastructure needed — every turn is
+a normal, stateless webhook request, which fits serverless cleanly.
+
+1. Buy a Twilio number (or use an existing one) and note it in **E.164**
+   format, e.g. `+9665XXXXXXXX`.
+2. Sign in to your Growth Inspector workspace and call:
+   ```bash
+   curl -X POST https://<your-app>/api/voice/register \
+     -H "Content-Type: application/json" \
+     --cookie "<your session cookie>" \
+     -d '{"phone":"+9665XXXXXXXX","displayName":"Main line"}'
+   ```
+   (Or run the equivalent request from the browser console while signed in —
+   `fetch` automatically sends your session cookie.) This links the number to
+   your workspace so incoming calls resolve to your brand voice + settings.
+3. In the Twilio console, set the number's:
+   - **Voice webhook (A CALL COMES IN):** `POST https://<your-app>/api/voice`
+   - **Status Callback URL** (optional but recommended): `POST https://<your-app>/api/voice/status`
+4. Set `TWILIO_AUTH_TOKEN` (Twilio console → Account → Auth Token) in Vercel
+   so incoming webhook requests are verified as genuinely from Twilio.
+5. Call the number. The AI greets in Arabic + English, listens, replies out
+   loud, and keeps the conversation going until you hang up or it needs to
+   hand off to a human (politely ends the call and logs an escalation with
+   the transcript for your team to follow up).
+
+Every call is stored exactly like the other channels — a `conversations` row
+(platform `call`) with `messages` for each turn — so the existing responder
+guardrails, brand-voice settings, and escalation logic all apply unchanged.
+
 ## After deploy
 
 - `/login` — sign up or sign in with email + password.
 - `/careers` — public apply form.
 - Real inbound traffic reaches the responder via `/api/webhooks/[platform]`
   (e.g. `/api/webhooks/whatsapp`, `/api/webhooks/email`) once the corresponding
-  provider webhook is configured.
+  provider webhook is configured, and via `/api/voice` for phone calls.

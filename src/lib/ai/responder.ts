@@ -155,6 +155,7 @@ export async function generateReply(
   analysis: MessageAnalysis,
   voice: BrandVoice,
   history: { author: string; body: string }[] = [],
+  channel: "text" | "voice" = "text",
 ): Promise<{ reply: string; confidence: number }> {
   const system = [
     "You are Growth Inspector replying to a customer on social media for a Saudi business.",
@@ -166,6 +167,13 @@ export async function generateReply(
     "3. Be warm, concise, and helpful. Respect Saudi etiquette and culture.",
     "4. Never invent prices, policies, or commitments not in the business facts.",
     "5. If you are not sure, lower your confidence score rather than guessing.",
+    ...(channel === "voice"
+      ? [
+          "6. This reply will be SPOKEN ALOUD on a live phone call: 1-3 short",
+          "   natural sentences, no emoji, no markdown, no bullet lists, no",
+          "   headings — plain spoken language only, as if talking to the caller.",
+        ]
+      : []),
     "",
     "BRAND VOICE:",
     brandVoiceBlock(voice),
@@ -197,6 +205,7 @@ export async function respond(
     replyMode: "autonomous" | "approval" | "off";
     threshold: number;
     history?: { author: string; body: string }[];
+    channel?: "text" | "voice";
   },
 ): Promise<ResponderResult> {
   const history = opts.history ?? [];
@@ -218,6 +227,7 @@ export async function respond(
     analysis,
     opts.voice,
     history,
+    opts.channel ?? "text",
   );
 
   // Decision matrix.
