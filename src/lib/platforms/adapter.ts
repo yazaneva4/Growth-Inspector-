@@ -50,9 +50,12 @@ export const sandboxAdapter: PlatformAdapter = {
 };
 
 /**
- * Stub for WhatsApp Business — structure only. Wire the Cloud API
- * (graph.facebook.com /messages, approved templates, 24h window) when a
- * verified WABA is available.
+ * WhatsApp Business Cloud API. Sends via graph.facebook.com using a Meta
+ * System User access token; `accountExternalId` is the WABA phone_number_id.
+ * Note: Meta only allows free-form replies within the 24h customer-service
+ * window after the customer's last message — fine for reactive replies (the
+ * normal orchestrator flow), but outbound-initiated messages outside that
+ * window need an approved template, which isn't implemented here.
  */
 export const whatsappAdapter: PlatformAdapter = {
   platform: "whatsapp",
@@ -85,8 +88,90 @@ export const whatsappAdapter: PlatformAdapter = {
     }
     return messages;
   },
-  async send() {
-    throw new Error("WhatsApp adapter not yet configured — needs verified WABA");
+  async send(accountExternalId, customerHandle, body) {
+    const token = process.env.META_ACCESS_TOKEN;
+    if (!token) {
+      console.log(`[whatsapp:dryrun] -> ${customerHandle} via ${accountExternalId}: ${body}`);
+      return;
+    }
+    const res = await fetch(
+      `https://graph.facebook.com/v20.0/${accountExternalId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: customerHandle,
+          type: "text",
+          text: { body },
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`WhatsApp send failed: ${res.status} ${await res.text()}`);
+    }
+  },
+};
+
+/**
+ * Instagram Direct Messages, via the same Meta Graph API family as WhatsApp
+ * (Instagram messaging is proxied through the connected Facebook Page).
+ * `accountExternalId` is the Page/IG-connected id the message was sent to;
+ * `customerHandle` is the sender's Instagram-Scoped ID (IGSID) from the webhook.
+ */
+export const instagramAdapter: PlatformAdapter = {
+  platform: "instagram",
+  parseWebhook(payload: unknown): InboundMessage[] {
+    // Instagram (via Graph API) wraps DMs in entry[].messaging[], Messenger-style.
+    const messages: InboundMessage[] = [];
+    const entries = (payload as { entry?: unknown[] })?.entry ?? [];
+    for (const entry of entries as Array<{
+      id?: string;
+      messaging?: Array<{
+        sender?: { id?: string };
+        recipient?: { id?: string };
+        message?: { text?: string; is_echo?: boolean };
+      }>;
+    }>) {
+      for (const m of entry.messaging ?? []) {
+        if (!m.message?.text || m.message.is_echo) continue; // skip our own sent messages
+        messages.push({
+          platform: "instagram",
+          accountExternalId: m.recipient?.id ?? entry.id ?? "",
+          customerHandle: m.sender?.id ?? "",
+          body: m.message.text,
+          receivedAt: new Date().toISOString(),
+        });
+      }
+    }
+    return messages;
+  },
+  async send(accountExternalId, customerHandle, body) {
+    const token = process.env.META_ACCESS_TOKEN;
+    if (!token) {
+      console.log(`[instagram:dryrun] -> ${customerHandle} via ${accountExternalId}: ${body}`);
+      return;
+    }
+    const res = await fetch(
+      `https://graph.facebook.com/v20.0/${accountExternalId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recipient: { id: customerHandle },
+          message: { text: body },
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Instagram send failed: ${res.status} ${await res.text()}`);
+    }
   },
 };
 
@@ -159,6 +244,7 @@ export const emailAdapter: PlatformAdapter = {
 const ADAPTERS: Record<string, PlatformAdapter> = {
   sandbox: sandboxAdapter,
   whatsapp: whatsappAdapter,
+  instagram: instagramAdapter,
   email: emailAdapter,
 };
 

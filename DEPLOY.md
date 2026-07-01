@@ -73,6 +73,53 @@ The "Continue with Google" button is hidden by default so users never hit a
   `https://<your-app>/api/webhooks/email`. The adapter accepts Postmark,
   SendGrid and Mailgun payload shapes and threads by sender address.
 
+## WhatsApp & Instagram (real sending, not just receiving)
+
+Both webhooks already parse inbound messages — this turns on actually
+*sending* the AI's replies back, via Meta's Graph API.
+
+1. Meta for Developers → your app → generate a **System User access token**
+   with `whatsapp_business_messaging` and `instagram_manage_messages`
+   permissions.
+2. Set `META_ACCESS_TOKEN` in Vercel. Without it, sends are logged (dry-run)
+   instead of delivered — the responder pipeline still runs end to end.
+3. Point the WhatsApp webhook at `https://<your-app>/api/webhooks/whatsapp`
+   and the Instagram webhook at `https://<your-app>/api/webhooks/instagram`
+   (verify token = `META_VERIFY_TOKEN`).
+4. Register each connected number/account as a `connected_accounts` row
+   (platform `whatsapp` / `instagram`, `external_id` = the WABA
+   phone_number_id / IG-connected Page id) for the workspace it belongs to.
+
+WhatsApp only allows free-form replies within the 24h window after the
+customer's last message (Meta policy) — fine for the normal reactive flow,
+but template messages for outside that window aren't implemented.
+
+## Publishing to X (the agent can post, not just reply)
+
+Beyond answering inbound messages, the agent can actively publish content —
+either exactly what you give it, or a post it drafts itself from a topic
+(e.g. something the trend radar surfaced), in the workspace's brand voice.
+
+1. X Developer Portal → your App → **Keys and tokens** → generate an
+   **Access Token & Secret with Read and Write** permission (this signs
+   requests as your account via OAuth 1.0a).
+2. Set `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_SECRET` in Vercel.
+3. Sign in, then:
+   ```bash
+   curl -X POST https://<your-app>/api/social/post \
+     -H "Content-Type: application/json" \
+     --cookie "<your session cookie>" \
+     -d '{"platform":"x","topic":"Ramadan delivery hours this week"}'
+   ```
+   Pass `"text"` instead of `"topic"` to publish exact text; add
+   `"replyToId":"<tweet id>"` to reply to a specific post/comment instead of
+   posting standalone. Without the X keys set, this returns the drafted text
+   without publishing (`dryRun: true`) so it's safe to try before going live.
+
+Note: this uses one set of X credentials for the whole deployment (post *as*
+one account), not a per-customer "connect your own X account" OAuth flow —
+suited to a single brand or an agency's own accounts today.
+
 ## Voice calls (Twilio)
 
 The AI can answer phone calls: it listens (Twilio's built-in speech
@@ -129,5 +176,8 @@ code-switching:
 - `/login` — sign up or sign in with email + password.
 - `/careers` — public apply form.
 - Real inbound traffic reaches the responder via `/api/webhooks/[platform]`
-  (e.g. `/api/webhooks/whatsapp`, `/api/webhooks/email`) once the corresponding
-  provider webhook is configured, and via `/api/voice` for phone calls.
+  (e.g. `/api/webhooks/whatsapp`, `/api/webhooks/instagram`, `/api/webhooks/email`)
+  once the corresponding provider webhook is configured, and via `/api/voice`
+  for phone calls.
+- `POST /api/social/post` lets the signed-in workspace publish to X.
+- `GET /api/health` reports which integrations are actually configured.

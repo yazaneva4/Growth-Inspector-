@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { X_CONFIGURED } from "@/lib/platforms/x";
 
 /**
  * Integration health check. Reports which API keys are configured WITHOUT
@@ -15,12 +16,14 @@ export async function GET() {
       anthropic: has(process.env.ANTHROPIC_API_KEY), // AI responder + weekly report
       resend_email: has(process.env.RESEND_API_KEY), // email replies
       meta_verify_token: has(process.env.META_VERIFY_TOKEN), // WhatsApp/IG webhooks
+      meta_access_token: has(process.env.META_ACCESS_TOKEN), // real WhatsApp/Instagram DM sending
       twilio_auth_token: has(process.env.TWILIO_AUTH_TOKEN), // voice webhook signature verification
       twilio_account_sid: has(process.env.TWILIO_ACCOUNT_SID), // needed for Whisper recording download
       whisper_transcription:
         has(process.env.OPENAI_API_KEY) &&
         has(process.env.TWILIO_ACCOUNT_SID) &&
         has(process.env.TWILIO_AUTH_TOKEN), // true = calls use Whisper instead of Twilio's built-in ASR
+      x_posting: X_CONFIGURED, // agent can publish to X via /api/social/post
     },
     note: "Booleans only — no secret values are exposed. Google sign-in is enabled in the Supabase dashboard, not via env vars.",
   });
