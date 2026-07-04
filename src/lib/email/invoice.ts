@@ -123,21 +123,16 @@ export async function sendInvoiceEmail(inv: InvoiceData): Promise<boolean> {
     console.log(`[invoice:dryrun] ${inv.number} -> ${inv.customerEmail} (${fmt(inv.total)} ${inv.currency})`);
     return false;
   }
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: inv.customerEmail,
-      subject: `Invoice ${inv.number} · فاتورة من ${inv.orgName}`,
-      html: buildInvoiceHtml(inv),
-    }),
+  const { Resend } = await import("resend");
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from,
+    to: inv.customerEmail,
+    subject: `Invoice ${inv.number} · فاتورة من ${inv.orgName}`,
+    html: buildInvoiceHtml(inv),
   });
-  if (!res.ok) {
-    throw new Error(`Invoice email failed: ${res.status} ${await res.text()}`);
+  if (error) {
+    throw new Error(`Invoice email failed: ${error.message}`);
   }
   return true;
 }
