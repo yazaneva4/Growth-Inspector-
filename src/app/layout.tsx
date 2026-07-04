@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Kufi_Arabic } from "next/font/google";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,9 +20,37 @@ const notoArabic = Noto_Kufi_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "Growth Inspector — AI customer engagement for Saudi Arabia",
-  description:
-    "Autonomous Arabic + English social and email responder with always-on growth analytics, built for the Saudi market.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — AI customer engagement for Saudi Arabia`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "AI customer service",
+    "Saudi Arabia",
+    "Arabic AI",
+    "WhatsApp automation",
+    "social media AI",
+    "Khaleeji dialect",
+    "growth analytics",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — AI customer engagement for Saudi Arabia`,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    locale: "en_US",
+    alternateLocale: "ar_SA",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — AI customer engagement for Saudi Arabia`,
+    description: SITE_DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
