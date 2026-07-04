@@ -44,6 +44,11 @@ export function RealtimeRefresh() {
         { event: "*", schema: "public", table: "escalations" },
         bump,
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "invoices" },
+        bump,
+      )
       .subscribe((status) => setConnected(status === "SUBSCRIBED"));
 
     return () => {

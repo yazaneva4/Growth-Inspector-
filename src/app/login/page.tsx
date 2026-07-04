@@ -7,11 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup";
 
-// Google sign-in only shows once the provider is actually enabled in Supabase
-// AND this flag is set, so users never hit "provider is not enabled".
-const GOOGLE_ENABLED =
-  process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true";
-
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
@@ -120,8 +115,7 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {GOOGLE_ENABLED && (
-          <>
+        <>
             <button
               onClick={signInWithGoogle}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
@@ -141,7 +135,6 @@ export default function LoginPage() {
               <span className="h-px flex-1 bg-slate-800" />
             </div>
           </>
-        )}
 
         <form onSubmit={submit} className="mt-5 space-y-3">
           <input

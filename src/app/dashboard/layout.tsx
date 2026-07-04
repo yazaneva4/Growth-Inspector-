@@ -11,6 +11,7 @@ const nav = [
   { href: "/dashboard/competitors", label: "Competitors" },
   { href: "/dashboard/inbox", label: "Inbox" },
   { href: "/dashboard/escalations", label: "Escalations" },
+  { href: "/dashboard/invoices", label: "Invoices" },
   { href: "/dashboard/settings", label: "Brand voice" },
   { href: "/dashboard/team", label: "Team" },
 ];

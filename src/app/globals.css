@@ -12,6 +12,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * Brand palette: orange · white · blue.
+ * The app was written against emerald accents on slate surfaces; remapping
+ * those tokens here rebrands every page at once (landing, login, dashboard,
+ * careers, 404) with no per-file churn:
+ *   - emerald-*  -> brand orange (CTAs, highlights, positive accents)
+ *   - slate-950..700 -> deep navy blues (backgrounds, cards, borders)
+ * Text stays white/gray; sky-* remains the informational blue.
+ */
+@theme {
+  --color-emerald-300: #fdba74;
+  --color-emerald-400: #fb923c;
+  --color-emerald-500: #f97316;
+
+  --color-slate-950: #071029;
+  --color-slate-900: #0e1c47;
+  --color-slate-800: #1a2c5e;
+  --color-slate-700: #2a4076;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
