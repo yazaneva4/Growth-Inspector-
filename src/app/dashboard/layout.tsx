@@ -5,15 +5,15 @@ import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { TopBar } from "@/components/top-bar";
 
 const nav = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/analytics", label: "Inspector report" },
-  { href: "/dashboard/trends", label: "Trend radar" },
-  { href: "/dashboard/competitors", label: "Competitors" },
-  { href: "/dashboard/inbox", label: "Inbox" },
-  { href: "/dashboard/escalations", label: "Escalations" },
-  { href: "/dashboard/invoices", label: "Invoices" },
-  { href: "/dashboard/settings", label: "Brand voice" },
-  { href: "/dashboard/team", label: "Team" },
+  { href: "/dashboard", label: "Overview", icon: "◻" },
+  { href: "/dashboard/analytics", label: "Inspector report", icon: "📈" },
+  { href: "/dashboard/trends", label: "Trend radar", icon: "📡" },
+  { href: "/dashboard/competitors", label: "Competitors", icon: "🎯" },
+  { href: "/dashboard/inbox", label: "Inbox", icon: "💬" },
+  { href: "/dashboard/escalations", label: "Escalations", icon: "⚠" },
+  { href: "/dashboard/invoices", label: "Invoices", icon: "🧾" },
+  { href: "/dashboard/settings", label: "Brand voice", icon: "🎙" },
+  { href: "/dashboard/team", label: "Team", icon: "👥" },
 ];
 
 export default async function DashboardLayout({
@@ -33,53 +33,77 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-800 p-5">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold">
-            Growth<span className="text-emerald-400"> Inspector</span>
-          </Link>
-          <RealtimeRefresh />
+      {/* Sidebar */}
+      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800/60 bg-slate-950 p-5">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-1 py-1">
+          <svg width="32" height="32" viewBox="0 0 64 64" className="flex-shrink-0">
+            <rect width="64" height="64" rx="12" fill="#1B2A6B" />
+            <path d="M 50 32 A 18 18 0 1 1 32 14"
+              stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
+            <rect x="33" y="11" width="15" height="15" rx="3" fill="#ffffff" />
+          </svg>
+          <div className="leading-none">
+            <div className="text-sm font-bold text-white">Growth</div>
+            <div className="text-xs font-medium text-emerald-400">Space</div>
+          </div>
+          <div className="ml-auto">
+            <RealtimeRefresh />
+          </div>
         </div>
-        <nav className="mt-8 flex flex-1 flex-col gap-1">
+
+        {/* Nav */}
+        <nav className="mt-7 flex flex-1 flex-col gap-0.5">
           {nav.map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className="rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
             >
+              <span className="text-xs opacity-60">{n.icon}</span>
               {n.label}
             </Link>
           ))}
         </nav>
 
+        {/* Account footer */}
         <div className="mt-4 border-t border-slate-800 pt-4 text-xs">
           {ctx.email ? (
-            <>
-              <div className="truncate text-slate-400" title={ctx.email}>
-                {ctx.email}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
+                  {ctx.email.charAt(0).toUpperCase()}
+                </span>
+                <span className="truncate text-slate-400" title={ctx.email}>
+                  {ctx.email}
+                </span>
               </div>
-              <form action="/auth/signout" method="post" className="mt-2">
-                <button className="w-full rounded-lg border border-slate-700 px-3 py-1.5 text-slate-300 hover:bg-slate-800">
+              <form action="/auth/signout" method="post">
+                <button className="w-full rounded-lg border border-slate-700 px-3 py-1.5 text-slate-300 hover:bg-slate-800 transition-colors">
                   Sign out
                 </button>
               </form>
-            </>
+            </div>
           ) : (
-            <>
-              <div className="text-slate-500">Viewing the demo workspace</div>
+            <div className="space-y-2">
+              <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-slate-500">
+                Viewing demo workspace
+              </div>
               <Link
                 href="/login"
-                className="mt-2 block rounded-lg bg-emerald-500 px-3 py-1.5 text-center font-medium text-slate-950 hover:bg-emerald-400"
+                className="block rounded-lg bg-emerald-500 px-3 py-1.5 text-center font-medium text-white hover:bg-emerald-600 transition-colors"
               >
                 Sign in / Create account
               </Link>
-            </>
+            </div>
           )}
         </div>
       </aside>
-      <main className="flex-1">
+
+      {/* Main content */}
+      <main className="flex min-w-0 flex-1 flex-col">
         <TopBar workspaceName={workspaceName} email={ctx.email} />
-        <div className="p-8">{children}</div>
+        <div className="flex-1 p-8">{children}</div>
       </main>
     </div>
   );

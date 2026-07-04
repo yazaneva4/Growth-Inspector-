@@ -4,12 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-/**
- * Subscribes to live changes on conversations / messages / escalations and
- * re-renders the dashboard server components when something happens. RLS still
- * applies, so each subscriber only receives rows from its own workspace (or the
- * public demo). Shows a small "live" indicator.
- */
+const LIVE_TABLES = ["conversations", "messages", "escalations", "invoices", "competitors"];
+
 export function RealtimeRefresh() {
   const router = useRouter();
   const [connected, setConnected] = useState(false);
@@ -23,33 +19,18 @@ export function RealtimeRefresh() {
       setPulse(true);
       setTimeout(() => setPulse(false), 1200);
       if (timer.current) clearTimeout(timer.current);
-      // Debounce bursts of events into a single refresh.
-      timer.current = setTimeout(() => router.refresh(), 500);
+      timer.current = setTimeout(() => router.refresh(), 400);
     };
 
-    const channel = supabase
-      .channel("dashboard-realtime")
-      .on(
+    let channel = supabase.channel("dashboard-realtime");
+    for (const table of LIVE_TABLES) {
+      channel = channel.on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "conversations" },
+        { event: "*", schema: "public", table },
         bump,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        bump,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "escalations" },
-        bump,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "invoices" },
-        bump,
-      )
-      .subscribe((status) => setConnected(status === "SUBSCRIBED"));
+      );
+    }
+    channel.subscribe((status) => setConnected(status === "SUBSCRIBED"));
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
@@ -59,17 +40,15 @@ export function RealtimeRefresh() {
 
   return (
     <span
-      className="flex items-center gap-1.5 text-xs text-slate-400"
-      title={connected ? "Live updates on" : "Connecting…"}
+      className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs"
+      style={connected ? { color: "#34d399" } : { color: "#64748b" }}
+      title={connected ? "All tables live" : "Connecting…"}
     >
       <span
-        className={`inline-block h-2 w-2 rounded-full ${
-          pulse
-            ? "bg-emerald-300"
-            : connected
-              ? "bg-emerald-500"
-              : "bg-slate-600"
-        }`}
+        className="inline-block h-1.5 w-1.5 rounded-full transition-colors"
+        style={{
+          background: pulse ? "#86efac" : connected ? "#34d399" : "#475569",
+        }}
       />
       {connected ? "Live" : "…"}
     </span>

@@ -38,7 +38,7 @@ export default function OpengraphImage() {
               stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
             <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
           </svg>
-          Growth Inspector
+          Growth Space
         </div>
         <div style={{ fontSize: 64, fontWeight: 700, lineHeight: 1.15, maxWidth: 980 }}>
           The AI that answers your customers — in their own dialect.

@@ -206,7 +206,7 @@ export default async function DashboardOverview() {
 
       {/* Advantage strip */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-        <h2 className="text-sm font-semibold text-sky-300">The Growth Inspector advantage</h2>
+        <h2 className="text-sm font-semibold text-sky-300">The Growth Space advantage</h2>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {advantages.map((x) => (
             <div key={x.t}>
