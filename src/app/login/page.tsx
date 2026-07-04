@@ -72,13 +72,24 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-slate-100">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
-        <h1 className="text-xl font-bold">
-          Growth<span className="text-emerald-400"> Inspector</span>
-        </h1>
+    <main className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-950">
+      <div className="w-full max-w-sm space-y-8">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-2.5">
+          <svg width="40" height="40" viewBox="0 0 64 64" className="flex-shrink-0">
+            <rect width="64" height="64" rx="12" fill="#ffffff" stroke="#1B2A6B" strokeWidth="1" />
+            <path d="M 50 32 A 18 18 0 1 1 32 14"
+              stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
+            <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
+          </svg>
+          <div>
+            <div className="text-lg font-bold text-slate-950">Growth</div>
+            <div className="text-xs text-slate-500 font-medium">Space</div>
+          </div>
+        </div>
 
-        <div className="mt-6 flex rounded-lg border border-slate-700 text-sm">
+        {/* Mode tabs */}
+        <div className="flex rounded-lg border border-slate-300 text-sm bg-slate-50">
           {(["signin", "signup"] as const).map((m) => (
             <button
               key={m}
@@ -87,8 +98,10 @@ export default function LoginPage() {
                 setError(null);
                 setNotice(null);
               }}
-              className={`flex-1 rounded-md px-3 py-2 ${
-                mode === m ? "bg-emerald-500 text-slate-950" : "text-slate-300"
+              className={`flex-1 rounded-md px-3 py-2.5 font-medium transition-colors ${
+                mode === m
+                  ? "bg-white text-slate-950 border border-slate-200"
+                  : "text-slate-600 hover:text-slate-950"
               }`}
             >
               {m === "signin" ? "Sign in" : "Create account"}
@@ -96,14 +109,15 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <form onSubmit={submit} className="mt-5 space-y-3">
+        {/* Form */}
+        <form onSubmit={submit} className="space-y-4">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.sa"
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
           />
           <input
             type="password"
@@ -112,12 +126,12 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password (min 6 chars)"
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
           />
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+            className="w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors"
           >
             {busy
               ? "…"
@@ -125,16 +139,20 @@ export default function LoginPage() {
                 ? "Sign in"
                 : "Create account"}
           </button>
-          {error && <p className="text-xs text-rose-400">{error}</p>}
-          {notice && <p className="text-xs text-emerald-400">{notice}</p>}
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          {notice && <p className="text-xs text-emerald-600">{notice}</p>}
         </form>
 
-        <Link
-          href="/"
-          className="mt-4 block text-center text-xs text-slate-500 hover:text-slate-300"
-        >
-          ← Back home
-        </Link>
+        {/* Back link */}
+        <div className="text-center">
+          <Link
+            href="/"
+            className="text-xs text-slate-600 hover:text-slate-950"
+          >
+            ← Back home
+          </Link>
+        </div>
       </div>
     </main>
   );
