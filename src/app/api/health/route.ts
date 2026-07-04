@@ -25,6 +25,6 @@ export async function GET() {
         has(process.env.TWILIO_AUTH_TOKEN), // true = calls use Whisper instead of Twilio's built-in ASR
       x_posting: X_CONFIGURED, // agent can publish to X via /api/social/post
     },
-    note: "Booleans only — no secret values are exposed. Google sign-in is enabled in the Supabase dashboard, not via env vars.",
+    note: "Booleans only — no secret values are exposed.",
   });
 }
