@@ -22,14 +22,16 @@
  * Text stays white/gray; sky-* remains the informational blue.
  */
 @theme {
-  --color-emerald-300: #fdba74;
-  --color-emerald-400: #fb923c;
-  --color-emerald-500: #f97316;
+  /* Logo-exact orange */
+  --color-emerald-300: #F8956E;
+  --color-emerald-400: #F4701F;
+  --color-emerald-500: #F26522;
 
-  --color-slate-950: #071029;
-  --color-slate-900: #0e1c47;
-  --color-slate-800: #1a2c5e;
-  --color-slate-700: #2a4076;
+  /* Logo-exact navy */
+  --color-slate-950: #070F2E;
+  --color-slate-900: #0F1B4A;
+  --color-slate-800: #1B2A6B;
+  --color-slate-700: #2A3F8A;
 }
 
 @media (prefers-color-scheme: dark) {

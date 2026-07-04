@@ -16,7 +16,7 @@ export default function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           padding: "80px",
-          background: "linear-gradient(135deg, #071029 0%, #0e1c47 100%)",
+          background: "linear-gradient(135deg, #070F2E 0%, #0F1B4A 100%)",
           color: "#f1f5f9",
           fontFamily: "sans-serif",
         }}
@@ -27,18 +27,16 @@ export default function OpengraphImage() {
             alignItems: "center",
             gap: 16,
             fontSize: 34,
-            color: "#fb923c",
+            color: "#F26522",
             marginBottom: 32,
           }}
         >
-          {/* mini brand mark */}
-          <svg width="52" height="52" viewBox="0 0 64 64">
-            <rect width="64" height="64" rx="14" fill="#0e1c47" />
-            <rect x="14" y="36" width="7" height="12" rx="2" fill="#f97316" opacity="0.55" />
-            <rect x="24" y="28" width="7" height="20" rx="2" fill="#f97316" opacity="0.75" />
-            <rect x="34" y="20" width="7" height="28" rx="2" fill="#f97316" />
-            <circle cx="41" cy="24" r="12" fill="none" stroke="#ffffff" strokeWidth="4" />
-            <line x1="49.5" y1="32.5" x2="57" y2="40" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" />
+          {/* G-mark logo */}
+          <svg width="56" height="56" viewBox="0 0 64 64">
+            <rect width="64" height="64" rx="14" fill="#ffffff" />
+            <path d="M 50 32 A 18 18 0 1 1 32 14"
+              stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
+            <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
           </svg>
           Growth Inspector
         </div>
