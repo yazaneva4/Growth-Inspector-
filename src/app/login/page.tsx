@@ -210,6 +210,14 @@ export default function LoginPage() {
           {notice && <p className="text-xs text-emerald-600">{notice}</p>}
         </form>
 
+        {/* Guest login — get straight in with no account (demo workspace) */}
+        <Link
+          href="/dashboard/inbox"
+          className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          Continue as guest
+        </Link>
+
         {/* Request access + back link */}
         <div className="space-y-2 text-center">
           <p className="text-xs text-slate-500">
