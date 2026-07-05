@@ -36,6 +36,7 @@ export default function OpengraphImage() {
             <rect width="64" height="64" rx="14" fill="#ffffff" />
             <path d="M 50 32 A 18 18 0 1 1 32 14"
               stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
+            <rect x="34" y="28.5" width="16" height="7" rx="3.5" fill="#F26522" />
             <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
           </svg>
           Growth Inspector

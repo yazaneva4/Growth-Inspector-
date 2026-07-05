@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { TopBar } from "@/components/top-bar";
+import { Logo } from "@/components/logo";
 
 const nav = [
   { href: "/dashboard", label: "Overview", icon: "◻" },
@@ -37,18 +38,7 @@ export default async function DashboardLayout({
       <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800/60 bg-slate-950 p-5">
         {/* Logo */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <svg width="36" height="36" viewBox="0 0 64 64" className="flex-shrink-0">
-              <rect width="64" height="64" rx="12" fill="#1B2A6B" />
-              <path d="M 50 32 A 18 18 0 1 1 32 14"
-                stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
-              <rect x="33" y="11" width="15" height="15" rx="3" fill="#ffffff" opacity="0.95" />
-            </svg>
-            <div className="leading-tight">
-              <div className="text-base font-bold text-white tracking-tight">Growth</div>
-              <div className="text-[11px] font-semibold text-emerald-400 tracking-wide uppercase">Inspector</div>
-            </div>
-          </div>
+          <Logo variant="dark" />
           <RealtimeRefresh />
         </div>
 
@@ -83,6 +73,12 @@ export default async function DashboardLayout({
                   Sign out
                 </button>
               </form>
+              <Link
+                href="/login?new=1"
+                className="block rounded-lg px-3 py-1.5 text-center text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                + Create another account
+              </Link>
             </div>
           ) : (
             <div className="space-y-2">

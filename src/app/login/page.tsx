@@ -4,12 +4,23 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/logo";
 
 type Mode = "signin" | "signup";
 
+// ?new=1 (from "Create another account") opens straight on the signup tab.
+function initialMode(): Mode {
+  if (typeof window !== "undefined") {
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      return "signup";
+    }
+  }
+  return "signin";
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,7 +52,8 @@ export default function LoginPage() {
         });
         if (error) throw error;
         if (signupData.session) {
-          router.push("/dashboard");
+          // Email confirmation is off in Supabase → straight into the app.
+          router.push("/dashboard/inbox");
           router.refresh();
         } else {
           setNotice(
@@ -61,7 +73,7 @@ export default function LoginPage() {
           ({ error } = await supabase.auth.signInWithPassword({ email, password }));
         }
         if (error) throw error;
-        router.push("/dashboard");
+        router.push("/dashboard/inbox");
         router.refresh();
       }
     } catch (err) {
@@ -75,17 +87,20 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-950">
       <div className="w-full max-w-sm space-y-8">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3">
-          <svg width="44" height="44" viewBox="0 0 64 64" className="flex-shrink-0 drop-shadow-sm">
-            <rect width="64" height="64" rx="12" fill="#ffffff" stroke="#1B2A6B" strokeWidth="0.5" />
-            <path d="M 50 32 A 18 18 0 1 1 32 14"
-              stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
-            <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" opacity="0.95" />
-          </svg>
-          <div className="leading-tight">
-            <div className="text-lg font-bold text-slate-950 tracking-tight">Growth</div>
-            <div className="text-xs text-slate-600 font-semibold tracking-wide uppercase">Inspector</div>
-          </div>
+        <div className="flex justify-center">
+          <Logo variant="light" size={44} />
+        </div>
+
+        {/* Greeting */}
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-slate-950">
+            {mode === "signin" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {mode === "signin"
+              ? "Sign in to your Growth Inspector workspace"
+              : "Start your Growth Inspector workspace"}
+          </p>
         </div>
 
         {/* Mode tabs */}
@@ -146,10 +161,7 @@ export default function LoginPage() {
 
         {/* Back link */}
         <div className="text-center">
-          <Link
-            href="/"
-            className="text-xs text-slate-600 hover:text-slate-950"
-          >
+          <Link href="/" className="text-xs text-slate-600 hover:text-slate-950">
             ← Back home
           </Link>
         </div>

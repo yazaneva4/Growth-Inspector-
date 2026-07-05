@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 const features = [
   {
@@ -26,18 +27,7 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-slate-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-3">
-            <svg width="36" height="36" viewBox="0 0 64 64" className="flex-shrink-0 drop-shadow-sm">
-              <rect width="64" height="64" rx="12" fill="#ffffff" stroke="#1B2A6B" strokeWidth="0.5" />
-              <path d="M 50 32 A 18 18 0 1 1 32 14"
-                stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
-              <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" opacity="0.95" />
-            </svg>
-            <div className="leading-tight">
-              <div className="text-base font-bold text-slate-950 tracking-tight">Growth</div>
-              <div className="text-xs text-slate-600 font-semibold tracking-wide">Inspector</div>
-            </div>
-          </div>
+          <Logo variant="light" />
           <nav className="flex items-center gap-6 text-sm font-medium">
             <Link href="/careers" className="text-slate-700 hover:text-slate-950">
               Careers
