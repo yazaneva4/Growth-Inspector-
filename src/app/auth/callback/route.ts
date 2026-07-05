@@ -9,5 +9,8 @@ export async function GET(req: NextRequest) {
     const supabase = await createClient();
     await supabase.auth.exchangeCodeForSession(code);
   }
-  return NextResponse.redirect(new URL("/dashboard", req.url));
+  // Honor ?next= (defaults to the inbox), but only allow same-app relative paths.
+  const next = req.nextUrl.searchParams.get("next");
+  const dest = next && next.startsWith("/") ? next : "/dashboard/inbox";
+  return NextResponse.redirect(new URL(dest, req.url));
 }
