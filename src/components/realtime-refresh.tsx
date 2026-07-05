@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +15,10 @@ const LIVE_TABLES = [
 
 export function RealtimeRefresh() {
   const router = useRouter();
+  // The layout mounts this twice (desktop sidebar + mobile menu). The Supabase
+  // client dedupes channels by topic, and adding callbacks to an
+  // already-subscribed channel THROWS — so each mount needs its own topic.
+  const channelId = useId();
   const [connected, setConnected] = useState(false);
   const [pulse, setPulse] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,7 +33,7 @@ export function RealtimeRefresh() {
       timer.current = setTimeout(() => router.refresh(), 400);
     };
 
-    let channel = supabase.channel("dashboard-realtime");
+    let channel = supabase.channel(`dashboard-realtime-${channelId}`);
     for (const table of LIVE_TABLES) {
       channel = channel.on(
         "postgres_changes",
@@ -43,7 +47,7 @@ export function RealtimeRefresh() {
       if (timer.current) clearTimeout(timer.current);
       supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [router, channelId]);
 
   return (
     <span

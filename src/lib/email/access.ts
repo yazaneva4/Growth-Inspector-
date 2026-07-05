@@ -1,4 +1,5 @@
 import { SITE_NAME } from "@/lib/site";
+import { sendEmail } from "@/lib/email/send";
 
 function esc(s: string): string {
   return s
@@ -21,18 +22,8 @@ const shell = (inner: string) => `<!doctype html>
   </div>
 </body></html>`;
 
-async function send(to: string, subject: string, html: string): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "Growth Inspector <onboarding@resend.dev>";
-  if (!apiKey) {
-    console.log(`[access:dryrun] ${subject} -> ${to}`);
-    return false;
-  }
-  const { Resend } = await import("resend");
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({ from, to, subject, html });
-  if (error) throw new Error(`Access email failed: ${error.message}`);
-  return true;
+function send(to: string, subject: string, html: string): Promise<boolean> {
+  return sendEmail({ to, subject, html });
 }
 
 /** Notify the workspace owner that someone requested access. */

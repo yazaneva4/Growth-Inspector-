@@ -1,3 +1,5 @@
+import { sendEmail } from "@/lib/email/send";
+
 export interface InvoiceItem {
   description: string;
   qty: number;
@@ -113,26 +115,14 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
 }
 
 /**
- * Emails the invoice via Resend. Returns true when actually delivered;
- * false when RESEND_API_KEY isn't configured (invoice stays a draft).
+ * Emails the invoice via the app transport (Gmail SMTP when GMAIL_USER +
+ * GMAIL_APP_PASSWORD are set, else Resend). Returns true when actually
+ * delivered; false when no transport is configured (invoice stays a draft).
  */
 export async function sendInvoiceEmail(inv: InvoiceData): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "Growth Inspector <onboarding@resend.dev>";
-  if (!apiKey) {
-    console.log(`[invoice:dryrun] ${inv.number} -> ${inv.customerEmail} (${fmt(inv.total)} ${inv.currency})`);
-    return false;
-  }
-  const { Resend } = await import("resend");
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from,
+  return sendEmail({
     to: inv.customerEmail,
     subject: `Invoice ${inv.number} · فاتورة من ${inv.orgName}`,
     html: buildInvoiceHtml(inv),
   });
-  if (error) {
-    throw new Error(`Invoice email failed: ${error.message}`);
-  }
-  return true;
 }

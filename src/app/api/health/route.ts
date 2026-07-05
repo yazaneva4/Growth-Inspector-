@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { X_CONFIGURED } from "@/lib/platforms/x";
+import { emailTransport } from "@/lib/email/send";
 
 /**
  * Integration health check. Reports which API keys are configured WITHOUT
@@ -14,7 +15,7 @@ export async function GET() {
       supabase: has(process.env.NEXT_PUBLIC_SUPABASE_URL) ? "configured" : "fallback",
       supabase_service_role: has(process.env.SUPABASE_SERVICE_ROLE_KEY), // also enables the sign-in self-heal for accounts stuck unconfirmed
       anthropic: has(process.env.ANTHROPIC_API_KEY), // AI responder + weekly report
-      resend_email: has(process.env.RESEND_API_KEY), // email replies
+      email_transport: emailTransport(), // "gmail" | "resend" | "none" — invoices, access emails, inbox replies
       meta_verify_token: has(process.env.META_VERIFY_TOKEN), // WhatsApp/IG webhooks
       meta_access_token: has(process.env.META_ACCESS_TOKEN), // real WhatsApp/Instagram DM sending
       twilio_auth_token: has(process.env.TWILIO_AUTH_TOKEN), // voice webhook signature verification

@@ -1,4 +1,5 @@
 import type { SocialPlatform } from "@/lib/types";
+import { sendEmail } from "@/lib/email/send";
 
 /** A normalized inbound event, whatever platform it came from. */
 export interface InboundMessage {
@@ -215,29 +216,13 @@ export const emailAdapter: PlatformAdapter = {
     ];
   },
   async send(accountExternalId, customerHandle, body) {
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.EMAIL_FROM ?? "Growth Inspector <onboarding@resend.dev>";
-    if (!apiKey) {
-      // No provider configured — log so the demo still works end to end.
-      console.log(`[email:dryrun] -> ${customerHandle}: ${body}`);
-      return;
-    }
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: customerHandle,
-        subject: "Re: your message",
-        text: body,
-      }),
+    // Unified transport: Gmail SMTP when configured, else Resend, else a
+    // logged dry-run so the demo still works end to end.
+    await sendEmail({
+      to: customerHandle,
+      subject: "Re: your message",
+      text: body,
     });
-    if (!res.ok) {
-      throw new Error(`Resend send failed: ${res.status} ${await res.text()}`);
-    }
   },
 };
 
