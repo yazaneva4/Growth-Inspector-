@@ -1,9 +1,9 @@
 /**
- * Growth Inspector brand mark: a solid orange "G" (ring + inward arm) with a
- * navy tile floating above it holding a magnifier (inspector) and sparkle
- * (brilliance). Flat colors — no gradients — for a clean, professional mark
- * that reproduces crisply at any size. `variant` only affects the wordmark
- * text color so it reads on dark vs light backgrounds.
+ * Growth Inspector brand mark, traced from the brand reference:
+ * a solid orange "G" drawn as one continuous flat-ended stroke (ring opening
+ * at the top right, turning inward as the arm), with a navy glow tile floating
+ * in the opening that carries a magnifier (inspector) and a tall four-point
+ * sparkle (brilliance). Do not restyle — this geometry matches the brand file.
  */
 export function LogoMark({
   size = 36,
@@ -15,28 +15,34 @@ export function LogoMark({
   return (
     <svg
       width={size}
-      height={size * (235 / 185)}
-      viewBox="60 15 185 235"
+      height={size * (425 / 410)}
+      viewBox="-5 -5 410 425"
       className={`flex-shrink-0 ${className}`}
       aria-hidden
     >
-      {/* Orange G: ring open at the upper-right + solid inward arm */}
+      <defs>
+        <radialGradient id="giTileGlow" cx="0.72" cy="0.22" r="1.1">
+          <stop offset="0" stopColor="#44579E" />
+          <stop offset="0.45" stopColor="#22326E" />
+          <stop offset="1" stopColor="#14224F" />
+        </radialGradient>
+      </defs>
+      {/* Orange G: flat (butt) ends, ring sweeping into the inward arm */}
       <path
-        d="M 228 160 A 78 78 0 1 1 155 83"
+        d="M 200 47.5 A 162.5 162.5 0 1 0 360 238.2 L 215 238.2"
         stroke="#F26522"
-        strokeWidth="50"
+        strokeWidth="75"
         fill="none"
-        strokeLinecap="round"
+        strokeLinecap="butt"
+        strokeLinejoin="round"
       />
-      <rect x="155" y="135" width="82" height="50" rx="25" fill="#F26522" />
-      {/* Navy tile floats above the arm with a visible gap */}
-      <rect x="150" y="24" width="72" height="72" rx="16" fill="#16255C" />
-      <circle cx="177" cy="52" r="11.5" fill="none" stroke="#ffffff" strokeWidth="5" />
-      <line x1="185" y1="60" x2="194" y2="69" stroke="#ffffff" strokeWidth="5.8" strokeLinecap="round" />
-      <path
-        d="M 199 34 C 200.2 38.8 201.4 40 205.8 41.2 C 201.4 42.4 200.2 43.6 199 48.4 C 197.8 43.6 196.6 42.4 192.2 41.2 C 196.6 40 197.8 38.8 199 34 Z"
-        fill="#ffffff"
-      />
+      {/* Navy glow tile in the G's opening */}
+      <rect x="220" y="0" width="180" height="175" rx="30" fill="url(#giTileGlow)" />
+      {/* Magnifier, lower-left of tile */}
+      <circle cx="283" cy="88" r="36" fill="none" stroke="#ffffff" strokeWidth="13" />
+      <line x1="307" y1="112" x2="330" y2="135" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+      {/* Tall four-point sparkle, upper-right of tile */}
+      <path d="M 365 6 Q 371 30 392 42 Q 371 54 365 78 Q 359 54 338 42 Q 359 30 365 6 Z" fill="#ffffff" />
     </svg>
   );
 }

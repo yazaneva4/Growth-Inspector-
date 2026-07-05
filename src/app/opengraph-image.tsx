@@ -31,14 +31,15 @@ export default function OpengraphImage() {
             marginBottom: 32,
           }}
         >
-          {/* G-mark logo — flat solid fills, tile floats above the arm */}
-          <svg width="53" height="67" viewBox="60 15 185 235">
-            <path d="M 228 160 A 78 78 0 1 1 155 83" stroke="#F26522" strokeWidth="50" fill="none" strokeLinecap="round" />
-            <rect x="155" y="135" width="82" height="50" rx="25" fill="#F26522" />
-            <rect x="150" y="24" width="72" height="72" rx="16" fill="#16255C" />
-            <circle cx="177" cy="52" r="11.5" fill="none" stroke="#ffffff" strokeWidth="5" />
-            <line x1="185" y1="60" x2="194" y2="69" stroke="#ffffff" strokeWidth="5.8" strokeLinecap="round" />
-            <path d="M 199 34 C 200.2 38.8 201.4 40 205.8 41.2 C 201.4 42.4 200.2 43.6 199 48.4 C 197.8 43.6 196.6 42.4 192.2 41.2 C 196.6 40 197.8 38.8 199 34 Z" fill="#ffffff" />
+          {/* G-mark, traced from the brand reference (flat tile fill — the OG
+              renderer has unreliable radial-gradient support) */}
+          <svg width="62" height="64" viewBox="-5 -5 410 425">
+            <path d="M 200 47.5 A 162.5 162.5 0 1 0 360 238.2 L 215 238.2"
+              stroke="#F26522" strokeWidth="75" fill="none" strokeLinecap="butt" strokeLinejoin="round" />
+            <rect x="220" y="0" width="180" height="175" rx="30" fill="#1B2C66" />
+            <circle cx="283" cy="88" r="36" fill="none" stroke="#ffffff" strokeWidth="13" />
+            <line x1="307" y1="112" x2="330" y2="135" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+            <path d="M 365 6 Q 371 30 392 42 Q 371 54 365 78 Q 359 54 338 42 Q 359 30 365 6 Z" fill="#ffffff" />
           </svg>
           Growth Inspector
         </div>
