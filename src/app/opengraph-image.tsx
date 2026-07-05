@@ -31,13 +31,14 @@ export default function OpengraphImage() {
             marginBottom: 32,
           }}
         >
-          {/* G-mark logo */}
-          <svg width="56" height="56" viewBox="0 0 64 64">
-            <rect width="64" height="64" rx="14" fill="#ffffff" />
-            <path d="M 50 32 A 18 18 0 1 1 32 14"
-              stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
-            <rect x="34" y="28.5" width="16" height="7" rx="3.5" fill="#F26522" />
-            <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
+          {/* G-mark logo — solid fills (next/og's renderer has limited gradient support) */}
+          <svg width="56" height="67" viewBox="60 32 185 215">
+            <path d="M 228 160 A 78 78 0 1 1 155 83" stroke="#F26522" strokeWidth="50" fill="none" strokeLinecap="round" />
+            <rect x="155" y="135" width="82" height="50" rx="25" fill="#F26522" />
+            <rect x="146" y="42" width="82" height="82" rx="18" fill="#16255C" />
+            <circle cx="178" cy="76" r="13.5" fill="none" stroke="#ffffff" strokeWidth="5.5" />
+            <line x1="187.5" y1="85.5" x2="198" y2="96" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" />
+            <path d="M 204 54 C 205.4 59.6 206.8 61 212 62.4 C 206.8 63.8 205.4 65.2 204 70.8 C 202.6 65.2 201.2 63.8 196 62.4 C 201.2 61 202.6 59.6 204 54 Z" fill="#ffffff" />
           </svg>
           Growth Inspector
         </div>
