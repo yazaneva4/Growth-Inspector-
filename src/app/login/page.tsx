@@ -210,9 +210,15 @@ export default function LoginPage() {
           {notice && <p className="text-xs text-emerald-600">{notice}</p>}
         </form>
 
-        {/* Back link */}
-        <div className="text-center">
-          <Link href="/" className="text-xs text-slate-600 hover:text-slate-950">
+        {/* Request access + back link */}
+        <div className="space-y-2 text-center">
+          <p className="text-xs text-slate-500">
+            No account?{" "}
+            <Link href="/request-access" className="text-emerald-500 hover:underline">
+              Request access
+            </Link>
+          </p>
+          <Link href="/" className="block text-xs text-slate-600 hover:text-slate-950">
             ← Back home
           </Link>
         </div>

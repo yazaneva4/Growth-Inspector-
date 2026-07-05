@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const LIVE_TABLES = ["conversations", "messages", "escalations", "invoices", "competitors"];
+const LIVE_TABLES = [
+  "conversations",
+  "messages",
+  "escalations",
+  "invoices",
+  "competitors",
+  "access_requests",
+];
 
 export function RealtimeRefresh() {
   const router = useRouter();
