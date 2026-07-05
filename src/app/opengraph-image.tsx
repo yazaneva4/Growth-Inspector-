@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const alt =
-  "Growth Space — AI customer engagement for Saudi Arabia";
+  "Growth Inspector — AI customer engagement for Saudi Arabia";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -38,7 +38,7 @@ export default function OpengraphImage() {
               stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
             <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
           </svg>
-          Growth Space
+          Growth Inspector
         </div>
         <div style={{ fontSize: 64, fontWeight: 700, lineHeight: 1.15, maxWidth: 980 }}>
           The AI that answers your customers — in their own dialect.

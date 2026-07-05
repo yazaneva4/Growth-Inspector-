@@ -84,7 +84,7 @@ export default function LoginPage() {
           </svg>
           <div className="leading-tight">
             <div className="text-lg font-bold text-slate-950 tracking-tight">Growth</div>
-            <div className="text-xs text-slate-600 font-semibold tracking-wide uppercase">Space</div>
+            <div className="text-xs text-slate-600 font-semibold tracking-wide uppercase">Inspector</div>
           </div>
         </div>
 

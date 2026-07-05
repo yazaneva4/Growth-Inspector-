@@ -35,7 +35,7 @@ export default function Home() {
             </svg>
             <div className="leading-tight">
               <div className="text-base font-bold text-slate-950 tracking-tight">Growth</div>
-              <div className="text-xs text-slate-600 font-semibold tracking-wide">Space</div>
+              <div className="text-xs text-slate-600 font-semibold tracking-wide">Inspector</div>
             </div>
           </div>
           <nav className="flex items-center gap-6 text-sm font-medium">

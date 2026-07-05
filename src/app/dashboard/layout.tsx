@@ -46,7 +46,7 @@ export default async function DashboardLayout({
             </svg>
             <div className="leading-tight">
               <div className="text-base font-bold text-white tracking-tight">Growth</div>
-              <div className="text-[11px] font-semibold text-emerald-400 tracking-wide uppercase">Space</div>
+              <div className="text-[11px] font-semibold text-emerald-400 tracking-wide uppercase">Inspector</div>
             </div>
           </div>
           <RealtimeRefresh />
@@ -87,7 +87,7 @@ export default async function DashboardLayout({
           ) : (
             <div className="space-y-2">
               <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-slate-500">
-                Viewing demo workspace
+                Viewing Growth Inspector demo
               </div>
               <Link
                 href="/login"

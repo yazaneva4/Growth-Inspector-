@@ -8,6 +8,6 @@ export const SITE_URL =
     ? process.env.NEXT_PUBLIC_SITE_URL
     : "https://growth-inspector-zl9k.vercel.app";
 
-export const SITE_NAME = "Growth Space";
+export const SITE_NAME = "Growth Inspector";
 export const SITE_DESCRIPTION =
   "The AI that answers your customers in their own dialect — autonomous Arabic + English replies across WhatsApp, Instagram, X, email and phone calls, with always-on growth analytics. Built for Saudi Arabia.";

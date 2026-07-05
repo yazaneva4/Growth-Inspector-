@@ -26,7 +26,7 @@ export default async function SettingsPage() {
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">Brand voice</h1>
       <p className="mt-1 text-sm text-slate-400">
-        This is how Growth Space speaks for you. It feeds directly into the
+        This is how Growth Inspector speaks for you. It feeds directly into the
         responder — changes apply to new replies immediately.
         {ctx.isDemo && (
           <span className="text-amber-400"> Sign in to edit your workspace.</span>
