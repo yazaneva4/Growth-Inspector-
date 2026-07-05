@@ -1,8 +1,9 @@
 /**
- * Growth Inspector brand mark: an orange "G" (ring + inward arm) with a navy
- * tile in the gap holding a magnifier (inspector) and sparkle (brilliance).
- * Mark colors are fixed regardless of surface; `variant` only affects the
- * wordmark text color so it reads on dark vs light backgrounds.
+ * Growth Inspector brand mark: a solid orange "G" (ring + inward arm) with a
+ * navy tile floating above it holding a magnifier (inspector) and sparkle
+ * (brilliance). Flat colors — no gradients — for a clean, professional mark
+ * that reproduces crisply at any size. `variant` only affects the wordmark
+ * text color so it reads on dark vs light backgrounds.
  */
 export function LogoMark({
   size = 36,
@@ -14,40 +15,26 @@ export function LogoMark({
   return (
     <svg
       width={size}
-      height={size * (215 / 185)}
-      viewBox="60 32 185 215"
+      height={size * (235 / 185)}
+      viewBox="60 15 185 235"
       className={`flex-shrink-0 ${className}`}
       aria-hidden
     >
-      <defs>
-        <linearGradient id="logoOrange" x1="70" y1="60" x2="260" y2="280" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#FAA57A" />
-          <stop offset="0.5" stopColor="#F26522" />
-          <stop offset="1" stopColor="#DF4508" />
-        </linearGradient>
-        <linearGradient id="logoNavy" x1="148" y1="44" x2="232" y2="150" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#33447F" />
-          <stop offset="1" stopColor="#0E1A40" />
-        </linearGradient>
-      </defs>
-      {/* Orange ring, open at the upper-right */}
+      {/* Orange G: ring open at the upper-right + solid inward arm */}
       <path
         d="M 228 160 A 78 78 0 1 1 155 83"
-        stroke="url(#logoOrange)"
+        stroke="#F26522"
         strokeWidth="50"
         fill="none"
         strokeLinecap="round"
       />
-      {/* Solid inward arm — the G crossbar */}
-      <rect x="155" y="135" width="82" height="50" rx="25" fill="url(#logoOrange)" />
-      {/* Navy tile filling the gap */}
-      <rect x="146" y="42" width="82" height="82" rx="18" fill="url(#logoNavy)" />
-      {/* Magnifier (inspector) */}
-      <circle cx="178" cy="76" r="13.5" fill="none" stroke="#ffffff" strokeWidth="5.5" />
-      <line x1="187.5" y1="85.5" x2="198" y2="96" stroke="#ffffff" strokeWidth="6.5" strokeLinecap="round" />
-      {/* Sparkle (brilliance) */}
+      <rect x="155" y="135" width="82" height="50" rx="25" fill="#F26522" />
+      {/* Navy tile floats above the arm with a visible gap */}
+      <rect x="150" y="24" width="72" height="72" rx="16" fill="#16255C" />
+      <circle cx="177" cy="52" r="11.5" fill="none" stroke="#ffffff" strokeWidth="5" />
+      <line x1="185" y1="60" x2="194" y2="69" stroke="#ffffff" strokeWidth="5.8" strokeLinecap="round" />
       <path
-        d="M 204 54 C 205.4 59.6 206.8 61 212 62.4 C 206.8 63.8 205.4 65.2 204 70.8 C 202.6 65.2 201.2 63.8 196 62.4 C 201.2 61 202.6 59.6 204 54 Z"
+        d="M 199 34 C 200.2 38.8 201.4 40 205.8 41.2 C 201.4 42.4 200.2 43.6 199 48.4 C 197.8 43.6 196.6 42.4 192.2 41.2 C 196.6 40 197.8 38.8 199 34 Z"
         fill="#ffffff"
       />
     </svg>
@@ -66,10 +53,10 @@ export function Logo({
   const accent = variant === "dark" ? "text-emerald-400" : "text-slate-600";
   return (
     <div className="flex items-center gap-2.5">
-      <LogoMark size={size} className="drop-shadow-sm" />
+      <LogoMark size={size} />
       <div className="leading-tight">
-        <div className={`text-base font-bold tracking-tight ${growth}`}>Growth</div>
-        <div className={`text-[11px] font-semibold uppercase tracking-wide ${accent}`}>
+        <div className={`text-base font-extrabold tracking-tight ${growth}`}>Growth</div>
+        <div className={`text-[11px] font-bold uppercase tracking-wide ${accent}`}>
           Inspector
         </div>
       </div>
