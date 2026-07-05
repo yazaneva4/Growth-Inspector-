@@ -36,20 +36,20 @@ export default async function DashboardLayout({
       {/* Sidebar */}
       <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800/60 bg-slate-950 p-5">
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-1 py-1">
-          <svg width="32" height="32" viewBox="0 0 64 64" className="flex-shrink-0">
-            <rect width="64" height="64" rx="12" fill="#1B2A6B" />
-            <path d="M 50 32 A 18 18 0 1 1 32 14"
-              stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
-            <rect x="33" y="11" width="15" height="15" rx="3" fill="#ffffff" />
-          </svg>
-          <div className="leading-none">
-            <div className="text-sm font-bold text-white">Growth</div>
-            <div className="text-xs font-medium text-emerald-400">Space</div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <svg width="36" height="36" viewBox="0 0 64 64" className="flex-shrink-0">
+              <rect width="64" height="64" rx="12" fill="#1B2A6B" />
+              <path d="M 50 32 A 18 18 0 1 1 32 14"
+                stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
+              <rect x="33" y="11" width="15" height="15" rx="3" fill="#ffffff" opacity="0.95" />
+            </svg>
+            <div className="leading-tight">
+              <div className="text-base font-bold text-white tracking-tight">Growth</div>
+              <div className="text-[11px] font-semibold text-emerald-400 tracking-wide uppercase">Space</div>
+            </div>
           </div>
-          <div className="ml-auto">
-            <RealtimeRefresh />
-          </div>
+          <RealtimeRefresh />
         </div>
 
         {/* Nav */}

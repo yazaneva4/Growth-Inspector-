@@ -75,16 +75,16 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-950">
       <div className="w-full max-w-sm space-y-8">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5">
-          <svg width="40" height="40" viewBox="0 0 64 64" className="flex-shrink-0">
-            <rect width="64" height="64" rx="12" fill="#ffffff" stroke="#1B2A6B" strokeWidth="1" />
+        <div className="flex items-center justify-center gap-3">
+          <svg width="44" height="44" viewBox="0 0 64 64" className="flex-shrink-0 drop-shadow-sm">
+            <rect width="64" height="64" rx="12" fill="#ffffff" stroke="#1B2A6B" strokeWidth="0.5" />
             <path d="M 50 32 A 18 18 0 1 1 32 14"
               stroke="#F26522" strokeWidth="8" fill="none" strokeLinecap="round" />
-            <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" />
+            <rect x="33" y="11" width="15" height="15" rx="3" fill="#1B2A6B" opacity="0.95" />
           </svg>
-          <div>
-            <div className="text-lg font-bold text-slate-950">Growth</div>
-            <div className="text-xs text-slate-500 font-medium">Space</div>
+          <div className="leading-tight">
+            <div className="text-lg font-bold text-slate-950 tracking-tight">Growth</div>
+            <div className="text-xs text-slate-600 font-semibold tracking-wide uppercase">Space</div>
           </div>
         </div>
 
