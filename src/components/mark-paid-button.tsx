@@ -25,7 +25,7 @@ export function MarkPaidButton({ id }: { id: string }) {
     <button
       onClick={markPaid}
       disabled={busy}
-      className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
     >
       {busy ? "…" : "Mark paid"}
     </button>

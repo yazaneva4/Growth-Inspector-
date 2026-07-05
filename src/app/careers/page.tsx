@@ -49,13 +49,13 @@ export default function CareersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 px-6 py-16 text-slate-100">
+    <main className="min-h-screen bg-white px-6 py-16 text-slate-900">
       <div className="mx-auto max-w-xl">
         <Link href="/" className="text-lg font-bold">
           Growth<span className="text-emerald-400"> Inspector</span>
         </Link>
         <h1 className="mt-8 text-4xl font-bold">Work in the Saudi growth space 🇸🇦</h1>
-        <p className="mt-3 text-slate-300">
+        <p className="mt-3 text-slate-600">
           We&apos;re building the AI that powers customer engagement for Saudi
           brands. If you live and breathe social, Arabic content, or growth —
           tell us about yourself.
@@ -66,14 +66,14 @@ export default function CareersPage() {
             <p className="font-medium text-emerald-300">
               شكراً! Your application is in. 🎉
             </p>
-            <p className="mt-1 text-sm text-slate-300">
+            <p className="mt-1 text-sm text-slate-600">
               We&apos;ll reach out by email if there&apos;s a fit.
             </p>
           </div>
         ) : (
           <form
             onSubmit={submit}
-            className="mt-8 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-6"
+            className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-6"
           >
             <input
               required
@@ -81,7 +81,7 @@ export default function CareersPage() {
               onChange={set("full_name")}
               placeholder="Full name"
               dir="auto"
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
             />
             <input
               required
@@ -89,18 +89,18 @@ export default function CareersPage() {
               value={form.email}
               onChange={set("email")}
               placeholder="Email"
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
             />
             <input
               value={form.phone}
               onChange={set("phone")}
               placeholder="Phone (optional)"
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
             />
             <select
               value={form.role_interest}
               onChange={set("role_interest")}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
             >
               {ROLES.map((r) => (
                 <option key={r}>{r}</option>
@@ -112,7 +112,7 @@ export default function CareersPage() {
               onChange={set("message")}
               placeholder="Tell us about yourself (Arabic or English)"
               dir="auto"
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
             />
             <button
               type="submit"

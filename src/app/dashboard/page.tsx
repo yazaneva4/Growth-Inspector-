@@ -7,14 +7,14 @@ import { Sparkline, LineChart } from "@/components/dashboard-visuals";
 export const dynamic = "force-dynamic";
 
 const platformBadge: Record<string, { label: string; cls: string }> = {
-  whatsapp: { label: "WA", cls: "bg-green-500/20 text-green-300" },
-  instagram: { label: "IG", cls: "bg-pink-500/20 text-pink-300" },
-  x: { label: "X", cls: "bg-slate-500/20 text-slate-200" },
-  snapchat: { label: "SC", cls: "bg-yellow-500/20 text-yellow-300" },
-  tiktok: { label: "TT", cls: "bg-cyan-500/20 text-cyan-300" },
-  email: { label: "@", cls: "bg-sky-500/20 text-sky-300" },
-  call: { label: "📞", cls: "bg-violet-500/20 text-violet-300" },
-  sandbox: { label: "•", cls: "bg-slate-500/20 text-slate-300" },
+  whatsapp: { label: "WA", cls: "bg-green-500/20 text-green-700" },
+  instagram: { label: "IG", cls: "bg-pink-500/20 text-pink-700" },
+  x: { label: "X", cls: "bg-slate-500/20 text-slate-800" },
+  snapchat: { label: "SC", cls: "bg-yellow-500/20 text-yellow-700" },
+  tiktok: { label: "TT", cls: "bg-cyan-500/20 text-cyan-700" },
+  email: { label: "@", cls: "bg-sky-500/20 text-sky-700" },
+  call: { label: "📞", cls: "bg-violet-500/20 text-violet-700" },
+  sandbox: { label: "•", cls: "bg-slate-500/20 text-slate-600" },
 };
 
 const advantages = [
@@ -33,7 +33,7 @@ export default async function DashboardOverview() {
     return (
       <div>
         <h1 className="text-2xl font-bold">Overview</h1>
-        <p className="mt-2 text-sm text-slate-400">No workspace data found.</p>
+        <p className="mt-2 text-sm text-slate-500">No workspace data found.</p>
       </div>
     );
   }
@@ -55,14 +55,14 @@ export default async function DashboardOverview() {
           <h1 className="text-3xl font-bold">
             {ctx.email ? `Welcome back, ${name}` : "Welcome"} 👋
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             Here&apos;s your growth overview for {a.orgName} · Last {a.rangeDays} days
           </p>
         </div>
         <div className="flex gap-3">
           <Link
             href="/dashboard/analytics"
-            className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-800"
+            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
           >
             📈 View full report
           </Link>
@@ -71,7 +71,7 @@ export default async function DashboardOverview() {
             className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
           >
             Open Inbox
-            <span className="rounded-md bg-slate-950/20 px-1.5 text-xs">
+            <span className="rounded-md bg-white/20 px-1.5 text-xs">
               {a.totals.conversations}
             </span>
           </Link>
@@ -83,24 +83,24 @@ export default async function DashboardOverview() {
         {cards.map((c) => (
           <div
             key={c.label}
-            className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
+            className="rounded-2xl border border-slate-200 bg-white p-5"
           >
             <div className="text-3xl font-bold">{c.value}</div>
-            <div className="mt-0.5 text-sm text-slate-400">{c.label}</div>
+            <div className="mt-0.5 text-sm text-slate-500">{c.label}</div>
             {c.sub && <div className="text-xs text-emerald-400">{c.sub}</div>}
             <Sparkline series={c.series} color={c.color} className="mt-3" />
           </div>
         ))}
 
-        <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/10 to-slate-900/60 p-5">
+        <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-500/10 to-slate-50 p-5">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold">Inbox · Live</span>
-            <span className="flex items-center gap-1 text-xs text-emerald-300">
+            <span className="flex items-center gap-1 text-xs text-emerald-500">
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
               Autonomous
             </span>
           </div>
-          <p className="mt-4 text-center text-xs text-slate-300">
+          <p className="mt-4 text-center text-xs text-slate-600">
             ✨ Monitoring your channels 24/7
             <br />
             Replying in Arabic & English
@@ -129,11 +129,11 @@ export default async function DashboardOverview() {
               const colors = ["bg-emerald-500", "bg-sky-500", "bg-amber-500", "bg-rose-500", "bg-violet-500", "bg-teal-500"];
               return (
                 <div key={it.intent} className="flex items-center gap-3 text-sm">
-                  <span className="w-28 shrink-0 text-slate-300">{it.intent}</span>
-                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-800">
+                  <span className="w-28 shrink-0 text-slate-600">{it.intent}</span>
+                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
                     <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${(it.count / max) * 100}%` }} />
                   </div>
-                  <span className="w-6 text-right text-slate-400">{it.count}</span>
+                  <span className="w-6 text-right text-slate-500">{it.count}</span>
                 </div>
               );
             })}
@@ -142,18 +142,18 @@ export default async function DashboardOverview() {
 
         <Panel title="Sentiment">
           <SentimentBar {...a.sentiment} />
-          <h3 className="mb-2 mt-6 text-xs font-semibold text-slate-400">Languages / dialects</h3>
+          <h3 className="mb-2 mt-6 text-xs font-semibold text-slate-500">Languages / dialects</h3>
           <div className="space-y-2">
             {a.languages.map((l, i) => {
               const max = Math.max(...a.languages.map((x) => x.count), 1);
               const colors = ["bg-emerald-500", "bg-sky-500", "bg-amber-500", "bg-rose-500"];
               return (
                 <div key={l.language} className="flex items-center gap-3 text-sm">
-                  <span className="w-20 shrink-0 text-slate-300">{l.language}</span>
-                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-800">
+                  <span className="w-20 shrink-0 text-slate-600">{l.language}</span>
+                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
                     <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${(l.count / max) * 100}%` }} />
                   </div>
-                  <span className="w-6 text-right text-slate-400">{l.count}</span>
+                  <span className="w-6 text-right text-slate-500">{l.count}</span>
                 </div>
               );
             })}
@@ -170,9 +170,9 @@ export default async function DashboardOverview() {
         <Panel title="Top leads to follow up">
           <div className="space-y-1">
             {a.topLeads.map((l) => (
-              <div key={l.handle} className="flex items-center justify-between border-b border-slate-800 py-2 text-sm last:border-0">
+              <div key={l.handle} className="flex items-center justify-between border-b border-slate-200 py-2 text-sm last:border-0">
                 <span className="truncate" dir="auto">{l.customer}</span>
-                <span className="ml-2 shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
+                <span className="ml-2 shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-500">
                   {l.lead_score}
                 </span>
               </div>
@@ -189,12 +189,12 @@ export default async function DashboardOverview() {
               <div key={i} className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
                 <div className="flex items-center justify-between">
                   <span className="truncate text-sm" dir="auto">{e.customer}</span>
-                  <span className="ml-2 shrink-0 rounded-full border border-rose-500/40 px-2 py-0.5 text-[10px] text-rose-300">
+                  <span className="ml-2 shrink-0 rounded-full border border-rose-500/40 px-2 py-0.5 text-[10px] text-rose-600">
                     {e.reason.replace(/_/g, " ")}
                   </span>
                 </div>
                 {e.draft && (
-                  <p className="mt-1 truncate text-xs text-slate-400" dir="auto">
+                  <p className="mt-1 truncate text-xs text-slate-500" dir="auto">
                     {e.draft}
                   </p>
                 )}
@@ -205,13 +205,13 @@ export default async function DashboardOverview() {
       </div>
 
       {/* Advantage strip */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-        <h2 className="text-sm font-semibold text-sky-300">The Growth Inspector advantage</h2>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+        <h2 className="text-sm font-semibold text-sky-700">The Growth Inspector advantage</h2>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {advantages.map((x) => (
             <div key={x.t}>
               <h3 className="text-sm font-semibold">{x.t}</h3>
-              <p className="mt-1 text-xs text-slate-400">{x.d}</p>
+              <p className="mt-1 text-xs text-slate-500">{x.d}</p>
             </div>
           ))}
         </div>
@@ -222,8 +222,8 @@ export default async function DashboardOverview() {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-      <h2 className="mb-4 text-sm font-semibold text-emerald-300">{title}</h2>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <h2 className="mb-4 text-sm font-semibold text-emerald-500">{title}</h2>
       {children}
     </div>
   );
@@ -243,7 +243,7 @@ function SentimentBar({ positive, neutral, negative }: { positive: number; neutr
           <div key={s.label} className={s.c} style={{ width: `${(s.v / total) * 100}%` }} />
         ))}
       </div>
-      <div className="mt-2 flex gap-4 text-xs text-slate-400">
+      <div className="mt-2 flex gap-4 text-xs text-slate-500">
         {seg.map((s) => (
           <span key={s.label} className="flex items-center gap-1.5">
             <span className={`inline-block h-2 w-2 rounded-full ${s.c}`} />

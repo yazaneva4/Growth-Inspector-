@@ -79,7 +79,7 @@ export function InvoiceForm() {
           onChange={(e) => setCustomerName(e.target.value)}
           placeholder="Customer name · اسم العميل"
           dir="auto"
-          className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
         <input
           required
@@ -87,7 +87,7 @@ export function InvoiceForm() {
           value={customerEmail}
           onChange={(e) => setCustomerEmail(e.target.value)}
           placeholder="customer@email.com"
-          className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
       </div>
 
@@ -99,7 +99,7 @@ export function InvoiceForm() {
             onChange={(e) => setLine(i, { description: e.target.value })}
             placeholder="Description · الوصف"
             dir="auto"
-            className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
           />
           <input
             required
@@ -108,7 +108,7 @@ export function InvoiceForm() {
             value={l.qty}
             onChange={(e) => setLine(i, { qty: e.target.value })}
             placeholder="Qty"
-            className="w-20 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+            className="w-20 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
           />
           <input
             required
@@ -118,13 +118,13 @@ export function InvoiceForm() {
             value={l.unit_price}
             onChange={(e) => setLine(i, { unit_price: e.target.value })}
             placeholder="Price (SAR)"
-            className="w-32 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+            className="w-32 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
           />
           {lines.length > 1 && (
             <button
               type="button"
               onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}
-              className="rounded-xl border border-slate-700 px-3 text-slate-400 hover:bg-slate-800"
+              className="rounded-xl border border-slate-300 px-3 text-slate-500 hover:bg-slate-100"
               aria-label="Remove line"
             >
               ✕
@@ -136,13 +136,13 @@ export function InvoiceForm() {
       <button
         type="button"
         onClick={() => setLines((ls) => [...ls, emptyLine()])}
-        className="rounded-xl border border-slate-700 px-4 py-2 text-xs text-slate-300 hover:bg-slate-800"
+        className="rounded-xl border border-slate-300 px-4 py-2 text-xs text-slate-600 hover:bg-slate-100"
       >
         + Add line
       </button>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3 text-sm">
-        <div className="text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3 text-sm">
+        <div className="text-slate-500">
           Subtotal {fmt(subtotal)} · VAT 15% {fmt(vat)} ·{" "}
           <span className="font-semibold text-emerald-400">Total {fmt(total)} SAR</span>
         </div>

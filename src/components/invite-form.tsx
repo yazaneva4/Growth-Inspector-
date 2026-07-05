@@ -42,12 +42,12 @@ export function InviteForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="employee@company.sa"
-        className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+        className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
       />
       <select
         value={role}
         onChange={(e) => setRole(e.target.value as "admin" | "agent")}
-        className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+        className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
       >
         <option value="agent">Agent</option>
         <option value="admin">Admin</option>

@@ -77,7 +77,7 @@ export function NotificationBell() {
     <div ref={boxRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
         aria-label="Notifications"
       >
         🔔
@@ -89,8 +89,8 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-xl">
-          <div className="px-2 py-1.5 text-xs font-semibold text-slate-400">
+        <div className="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+          <div className="px-2 py-1.5 text-xs font-semibold text-slate-500">
             Escalations needing a human
           </div>
           {items.length === 0 ? (
@@ -101,13 +101,13 @@ export function NotificationBell() {
             items.map((n) => (
               <div
                 key={n.id}
-                className="rounded-lg px-2 py-2 text-sm hover:bg-slate-800"
+                className="rounded-lg px-2 py-2 text-sm hover:bg-slate-100"
               >
                 <div className="flex items-center justify-between">
-                  <span className="truncate text-slate-200" dir="auto">
+                  <span className="truncate text-slate-800" dir="auto">
                     {n.customer}
                   </span>
-                  <span className="ml-2 shrink-0 rounded-full border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-300">
+                  <span className="ml-2 shrink-0 rounded-full border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-600">
                     {n.reason.replace(/_/g, " ")}
                   </span>
                 </div>

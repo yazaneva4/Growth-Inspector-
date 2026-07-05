@@ -14,7 +14,7 @@ export default async function AnalyticsPage() {
     return (
       <div>
         <h1 className="text-2xl font-bold">Growth Inspector report</h1>
-        <p className="mt-2 text-sm text-slate-400">No data available.</p>
+        <p className="mt-2 text-sm text-slate-500">No data available.</p>
       </div>
     );
   }
@@ -25,13 +25,13 @@ export default async function AnalyticsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Growth Inspector report</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {a.orgName} · weekly analyst · last {a.rangeDays} days
           </p>
         </div>
         <a
           href="/api/export"
-          className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
+          className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
         >
           ⬇ Export CSV
         </a>
@@ -42,14 +42,14 @@ export default async function AnalyticsPage() {
         <div className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
           🔎 The Inspector says
         </div>
-        <p className="mt-2 text-lg font-medium text-slate-100">
+        <p className="mt-2 text-lg font-medium text-slate-900">
           {report.headline}
         </p>
 
         <div className="mt-5 grid gap-6 md:grid-cols-3">
-          <ReportColumn title="Highlights" items={report.highlights} accent="text-emerald-300" />
-          <ReportColumn title="Watch out" items={report.concerns} accent="text-amber-300" />
-          <ReportColumn title="Recommended actions" items={report.recommendations} accent="text-sky-300" />
+          <ReportColumn title="Highlights" items={report.highlights} accent="text-emerald-500" />
+          <ReportColumn title="Watch out" items={report.concerns} accent="text-amber-700" />
+          <ReportColumn title="Recommended actions" items={report.recommendations} accent="text-sky-700" />
         </div>
       </div>
 
@@ -84,10 +84,10 @@ export default async function AnalyticsPage() {
           <table className="w-full text-sm">
             <tbody>
               {a.topLeads.map((l) => (
-                <tr key={l.handle} className="border-b border-slate-800 last:border-0">
+                <tr key={l.handle} className="border-b border-slate-200 last:border-0">
                   <td className="py-2" dir="auto">{l.customer}</td>
-                  <td className="py-2 text-slate-400">{l.intent ?? "—"}</td>
-                  <td className="py-2 text-right font-semibold text-emerald-300">
+                  <td className="py-2 text-slate-500">{l.intent ?? "—"}</td>
+                  <td className="py-2 text-right font-semibold text-emerald-500">
                     {l.lead_score}
                   </td>
                 </tr>
@@ -114,7 +114,7 @@ function ReportColumn({
       <h3 className={`text-xs font-semibold uppercase tracking-wide ${accent}`}>
         {title}
       </h3>
-      <ul className="mt-2 space-y-2 text-sm text-slate-300">
+      <ul className="mt-2 space-y-2 text-sm text-slate-600">
         {items.map((it, i) => (
           <li key={i} className="flex gap-2">
             <span className={accent}>•</span>

@@ -33,14 +33,14 @@ export default async function EscalationsPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold">Escalations</h1>
-      <p className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-500">
         Conversations the AI handed to a human — low confidence, high-intent
         leads, or hard-block topics (politics, religion, legal/medical, pricing
         commitments). These never auto-send.
       </p>
 
       {escalations.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-slate-700 p-10 text-center text-sm text-slate-500">
+        <div className="mt-8 rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">
           No open escalations 🎉
         </div>
       ) : (
@@ -64,13 +64,13 @@ export default async function EscalationsPage() {
                       {c.platform} · {c.language}
                     </span>
                   </div>
-                  <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-300">
+                  <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-600">
                     {e.reason.replace(/_/g, " ")}
                   </span>
                 </div>
                 {e.draft && (
                   <p
-                    className="mt-3 rounded-lg bg-slate-800/60 p-3 text-sm text-slate-300"
+                    className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-600"
                     dir="auto"
                   >
                     Suggested draft: {e.draft}

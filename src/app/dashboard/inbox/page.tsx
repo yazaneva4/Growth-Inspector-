@@ -6,14 +6,14 @@ import { InboxSimulator } from "@/components/inbox-simulator";
 export const dynamic = "force-dynamic";
 
 const platformBadge: Record<string, { label: string; cls: string }> = {
-  whatsapp: { label: "WA", cls: "bg-green-500/20 text-green-300" },
-  instagram: { label: "IG", cls: "bg-pink-500/20 text-pink-300" },
-  x: { label: "X", cls: "bg-slate-500/20 text-slate-200" },
-  snapchat: { label: "SC", cls: "bg-yellow-500/20 text-yellow-300" },
-  tiktok: { label: "TT", cls: "bg-cyan-500/20 text-cyan-300" },
-  email: { label: "@", cls: "bg-sky-500/20 text-sky-300" },
-  call: { label: "📞", cls: "bg-violet-500/20 text-violet-300" },
-  sandbox: { label: "•", cls: "bg-slate-500/20 text-slate-300" },
+  whatsapp: { label: "WA", cls: "bg-green-500/20 text-green-700" },
+  instagram: { label: "IG", cls: "bg-pink-500/20 text-pink-700" },
+  x: { label: "X", cls: "bg-slate-500/20 text-slate-800" },
+  snapchat: { label: "SC", cls: "bg-yellow-500/20 text-yellow-700" },
+  tiktok: { label: "TT", cls: "bg-cyan-500/20 text-cyan-700" },
+  email: { label: "@", cls: "bg-sky-500/20 text-sky-700" },
+  call: { label: "📞", cls: "bg-violet-500/20 text-violet-700" },
+  sandbox: { label: "•", cls: "bg-slate-500/20 text-slate-600" },
 };
 
 function timeAgo(iso: string) {
@@ -95,7 +95,7 @@ export default async function InboxPage({
           <h1 className="text-2xl font-bold">
             {ctx.email ? `Welcome back, ${ctx.email.split("@")[0]} 👋` : "Inbox"}
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {conversations.length} conversation{conversations.length === 1 ? "" : "s"} · updates live
           </p>
         </div>
@@ -109,7 +109,7 @@ export default async function InboxPage({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* Conversation list */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-2">
           {conversations.length === 0 ? (
             <p className="p-6 text-center text-sm text-slate-500">
               No conversations yet. Use “Test the AI” to create some.
@@ -124,7 +124,7 @@ export default async function InboxPage({
                     key={c.id}
                     href={`/dashboard/inbox?c=${c.id}`}
                     className={`block rounded-xl p-3 ${
-                      active ? "bg-slate-800" : "hover:bg-slate-800/60"
+                      active ? "bg-slate-100" : "hover:bg-slate-100"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -142,17 +142,17 @@ export default async function InboxPage({
                     </div>
                     <div className="mt-1 flex items-center gap-1.5">
                       {c.intent && (
-                        <span className="rounded border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                        <span className="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500">
                           {c.intent}
                         </span>
                       )}
                       {c.status === "escalated" && (
-                        <span className="rounded border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-300">
+                        <span className="rounded border border-rose-500/40 px-1.5 py-0.5 text-[10px] text-rose-600">
                           escalated
                         </span>
                       )}
                       {(c.lead_score ?? 0) >= 80 && (
-                        <span className="rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] text-emerald-300">
+                        <span className="rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] text-emerald-500">
                           hot lead
                         </span>
                       )}
@@ -165,12 +165,12 @@ export default async function InboxPage({
         </div>
 
         {/* Right pane: tester, thread, or empty */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
           {showTester ? (
             <InboxSimulator />
           ) : selected ? (
             <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div className="font-semibold" dir="auto">
                   {selected.customer_name ?? selected.customer_handle}
                   <span className="ml-2 text-xs text-slate-500">
@@ -178,7 +178,7 @@ export default async function InboxPage({
                   </span>
                 </div>
                 {selected.status === "escalated" && (
-                  <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-300">
+                  <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-600">
                     escalated
                   </span>
                 )}
@@ -190,7 +190,7 @@ export default async function InboxPage({
                     <div key={m.id} className={`flex ${inbound ? "justify-start" : "justify-end"}`}>
                       <div
                         className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                          inbound ? "bg-slate-800 text-slate-100" : "bg-emerald-500 text-slate-950"
+                          inbound ? "bg-slate-100 text-slate-900" : "bg-emerald-500 text-slate-950"
                         }`}
                         dir="auto"
                       >

@@ -14,7 +14,7 @@ export default async function TrendsPage() {
     return (
       <div>
         <h1 className="text-2xl font-bold">Trend radar</h1>
-        <p className="mt-2 text-sm text-slate-400">No data available.</p>
+        <p className="mt-2 text-sm text-slate-500">No data available.</p>
       </div>
     );
   }
@@ -24,7 +24,7 @@ export default async function TrendsPage() {
   return (
     <div className="max-w-4xl">
       <h1 className="text-2xl font-bold">Trend radar</h1>
-      <p className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-500">
         {a.orgName} · what your customers are talking about · last {a.rangeDays} days
       </p>
 
@@ -39,15 +39,15 @@ export default async function TrendsPage() {
         {radar.themes.map((t, i) => (
           <div
             key={i}
-            className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
+            className="rounded-2xl border border-slate-200 bg-white p-5"
           >
-            <h3 className="text-base font-semibold text-emerald-300" dir="auto">
+            <h3 className="text-base font-semibold text-emerald-500" dir="auto">
               {t.topic}
             </h3>
-            <p className="mt-2 text-sm text-slate-400" dir="auto">
+            <p className="mt-2 text-sm text-slate-500" dir="auto">
               {t.why}
             </p>
-            <div className="mt-3 rounded-lg bg-slate-800/60 p-3 text-sm text-slate-200" dir="auto">
+            <div className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-800" dir="auto">
               <span className="text-emerald-400">▶ </span>
               {t.action}
             </div>
@@ -55,8 +55,8 @@ export default async function TrendsPage() {
         ))}
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="mb-3 text-sm font-semibold text-slate-300">
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="mb-3 text-sm font-semibold text-slate-600">
           Suggested hashtags
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export default async function TrendsPage() {
             <span
               key={h}
               dir="auto"
-              className="rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1 text-sm text-sky-300"
+              className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-sm text-sky-700"
             >
               {h}
             </span>

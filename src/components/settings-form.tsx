@@ -67,7 +67,7 @@ export function SettingsForm({
           onChange={(e) => setTone(e.target.value)}
           placeholder="Warm, professional, light Khaleeji dialect"
           dir="auto"
-          className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
       </Field>
 
@@ -78,7 +78,7 @@ export function SettingsForm({
           onChange={(e) => setFacts(e.target.value)}
           placeholder="Hours, delivery times, return policy, product list…"
           dir="auto"
-          className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
       </Field>
 
@@ -89,7 +89,7 @@ export function SettingsForm({
           onChange={(e) => setGuardrails(e.target.value)}
           placeholder={"Never promise discounts not approved by the team\nNever share competitor info"}
           dir="auto"
-          className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+          className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
       </Field>
 
@@ -98,7 +98,7 @@ export function SettingsForm({
           <select
             value={mode}
             onChange={(e) => setMode(e.target.value as ReplyMode)}
-            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
           >
             <option value="autonomous">Autonomous — AI sends automatically</option>
             <option value="approval">Approval — AI drafts, human sends</option>
@@ -146,7 +146,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-300">{label}</span>
+      <span className="text-sm text-slate-600">{label}</span>
       {children}
     </label>
   );

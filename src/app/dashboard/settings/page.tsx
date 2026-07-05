@@ -25,7 +25,7 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">Brand voice</h1>
-      <p className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-500">
         This is how Growth Inspector speaks for you. It feeds directly into the
         responder — changes apply to new replies immediately.
         {ctx.isDemo && (
@@ -37,14 +37,14 @@ export default async function SettingsPage() {
         <SettingsForm initial={initial} canSave={!ctx.isDemo} />
       </div>
 
-      <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="text-sm font-semibold text-rose-300">
+      <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-rose-600">
           Always escalated to a human
         </h2>
         <p className="mt-1 text-xs text-slate-500">
           These are hard-coded guardrails — the AI never handles them on its own.
         </p>
-        <ul className="mt-3 space-y-1 text-sm text-slate-400">
+        <ul className="mt-3 space-y-1 text-sm text-slate-500">
           {HARD_BLOCK_TOPICS.map((t) => (
             <li key={t}>• {t}</li>
           ))}

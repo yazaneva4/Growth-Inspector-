@@ -11,7 +11,7 @@ export default async function TeamPage() {
     return (
       <div className="max-w-2xl">
         <h1 className="text-2xl font-bold">Team</h1>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-slate-500">
           Sign in to invite employees to your workspace. Each seat is billed on
           your plan.
         </p>
@@ -39,20 +39,20 @@ export default async function TeamPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">Team</h1>
-      <p className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-500">
         Invite employees to help answer your inbox. {memberCount ?? 1} active{" "}
         {memberCount === 1 ? "member" : "members"}.
       </p>
 
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="mb-3 text-sm font-semibold text-emerald-300">
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="mb-3 text-sm font-semibold text-emerald-500">
           Invite an employee
         </h2>
         <InviteForm />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="mb-3 text-sm font-semibold text-slate-300">Invitations</h2>
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="mb-3 text-sm font-semibold text-slate-600">Invitations</h2>
         {rows.length === 0 ? (
           <p className="text-sm text-slate-500">No invitations yet.</p>
         ) : (
@@ -66,15 +66,15 @@ export default async function TeamPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.email} className="border-t border-slate-800">
+                <tr key={r.email} className="border-t border-slate-200">
                   <td className="py-2" dir="auto">{r.email}</td>
-                  <td className="py-2 capitalize text-slate-400">{r.role}</td>
+                  <td className="py-2 capitalize text-slate-500">{r.role}</td>
                   <td className="py-2">
                     <span
                       className={`rounded-full border px-2 py-0.5 text-xs ${
                         r.accepted
-                          ? "border-emerald-500/40 text-emerald-300"
-                          : "border-amber-500/40 text-amber-300"
+                          ? "border-emerald-500/40 text-emerald-500"
+                          : "border-amber-500/40 text-amber-700"
                       }`}
                     >
                       {r.accepted ? "Joined" : "Pending"}

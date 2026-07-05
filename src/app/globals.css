@@ -13,32 +13,17 @@
 }
 
 /*
- * Brand palette: orange · white · blue.
- * The app was written against emerald accents on slate surfaces; remapping
- * those tokens here rebrands every page at once (landing, login, dashboard,
- * careers, 404) with no per-file churn:
- *   - emerald-*  -> brand orange (CTAs, highlights, positive accents)
- *   - slate-950..700 -> deep navy blues (backgrounds, cards, borders)
- * Text stays white/gray; sky-* remains the informational blue.
+ * Brand palette: orange · white · (navy only in the logo).
+ * emerald-* is remapped to the brand orange so every CTA/accent picks it up
+ * at once. Slate keeps its default neutral grays — the app surfaces are white
+ * with gray text; navy blue appears ONLY in the hardcoded logo mark.
  */
 @theme {
   /* Logo-exact orange */
   --color-emerald-300: #F8956E;
   --color-emerald-400: #F4701F;
   --color-emerald-500: #F26522;
-
-  /* Logo-exact navy */
-  --color-slate-950: #070F2E;
-  --color-slate-900: #0F1B4A;
-  --color-slate-800: #1B2A6B;
-  --color-slate-700: #2A3F8A;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-emerald-600: #D9531A;
 }
 
 body {

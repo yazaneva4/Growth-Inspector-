@@ -23,12 +23,12 @@ export function TopBar({
   }, []);
 
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800/60 bg-slate-950/90 px-8 py-3 backdrop-blur">
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-8 py-3 backdrop-blur">
       {/* Workspace chip */}
       <div ref={ref} className="relative">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <span
             className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold text-white"
@@ -43,14 +43,14 @@ export function TopBar({
         </button>
 
         {open && (
-          <div className="absolute left-0 z-20 mt-2 w-56 rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-2xl">
-            <div className="rounded-lg bg-slate-800 px-3 py-2">
-              <div className="font-medium text-sm text-white" dir="auto">{workspaceName}</div>
-              <div className="text-[10px] text-emerald-400 mt-0.5">Current workspace</div>
+          <div className="absolute left-0 z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+            <div className="rounded-lg bg-slate-100 px-3 py-2">
+              <div className="font-medium text-sm text-slate-900" dir="auto">{workspaceName}</div>
+              <div className="text-[10px] text-emerald-500 mt-0.5">Current workspace</div>
             </div>
             <a
               href="/dashboard/team"
-              className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors"
+              className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
             >
               <span>👥</span> Invite team members →
             </a>

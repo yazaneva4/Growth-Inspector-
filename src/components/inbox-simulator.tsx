@@ -17,9 +17,9 @@ const SAMPLES = [
 ];
 
 const decisionStyle: Record<string, string> = {
-  send: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
-  draft: "bg-amber-500/15 text-amber-300 border-amber-500/40",
-  escalate: "bg-rose-500/15 text-rose-300 border-rose-500/40",
+  send: "bg-emerald-500/15 text-emerald-500 border-emerald-500/40",
+  draft: "bg-amber-500/15 text-amber-700 border-amber-500/40",
+  escalate: "bg-rose-500/15 text-rose-600 border-rose-500/40",
 };
 
 export function InboxSimulator() {
@@ -97,7 +97,7 @@ export function InboxSimulator() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Test the responder</h2>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-slate-300">
+          <label className="flex items-center gap-1.5 text-xs text-slate-600">
             <input
               type="checkbox"
               checked={persist}
@@ -107,13 +107,13 @@ export function InboxSimulator() {
             Save to workspace
           </label>
           {persist && (
-            <div className="flex rounded-lg border border-slate-700 text-xs">
+            <div className="flex rounded-lg border border-slate-300 text-xs">
               {(["sandbox", "email"] as const).map((c) => (
                 <button
                   key={c}
                   onClick={() => setChannel(c)}
                   className={`px-3 py-1.5 ${
-                    channel === c ? "bg-sky-500 text-slate-950" : "text-slate-300"
+                    channel === c ? "bg-sky-500 text-slate-950" : "text-slate-600"
                   }`}
                 >
                   {c === "sandbox" ? "Social" : "Email"}
@@ -122,13 +122,13 @@ export function InboxSimulator() {
             </div>
           )}
           {!persist && (
-            <div className="flex rounded-lg border border-slate-700 text-xs">
+            <div className="flex rounded-lg border border-slate-300 text-xs">
               {(["autonomous", "approval"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
                   className={`px-3 py-1.5 capitalize ${
-                    mode === m ? "bg-emerald-500 text-slate-950" : "text-slate-300"
+                    mode === m ? "bg-emerald-500 text-slate-950" : "text-slate-600"
                   }`}
                 >
                   {m}
@@ -138,12 +138,12 @@ export function InboxSimulator() {
           )}
         </div>
       </div>
-      <p className="mt-1 text-sm text-slate-400">
+      <p className="mt-1 text-sm text-slate-500">
         Type as a customer (Arabic, dialect, Arabizi or English). With “Save to
         workspace” on, conversations appear in the inbox list and analytics live.
       </p>
 
-      <div className="mt-4 min-h-[280px] space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+      <div className="mt-4 min-h-[280px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
         {turns.length === 0 && (
           <p className="py-10 text-center text-sm text-slate-500">
             Start by sending a message below 👇
@@ -152,7 +152,7 @@ export function InboxSimulator() {
         {turns.map((t, i) => {
           if (t.who === "system")
             return (
-              <div key={i} className="text-center text-xs text-rose-300">
+              <div key={i} className="text-center text-xs text-rose-600">
                 ⚠ {t.body}
               </div>
             );
@@ -161,7 +161,7 @@ export function InboxSimulator() {
             <div key={i} className={`flex ${mine ? "justify-start" : "justify-end"}`}>
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                  mine ? "bg-slate-800 text-slate-100" : "bg-emerald-500 text-slate-950"
+                  mine ? "bg-slate-100 text-slate-900" : "bg-emerald-500 text-slate-950"
                 }`}
                 dir="auto"
               >
@@ -171,10 +171,10 @@ export function InboxSimulator() {
                     <span className={`rounded border px-1.5 py-0.5 ${decisionStyle[t.result.decision]}`}>
                       {t.result.decision} · {(t.result.confidence * 100).toFixed(0)}%
                     </span>
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-300">
+                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-600">
                       {t.result.analysis.intent}
                     </span>
-                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-300">
+                    <span className="rounded border border-slate-600 px-1.5 py-0.5 text-slate-600">
                       {t.result.analysis.language}
                     </span>
                   </div>
@@ -192,7 +192,7 @@ export function InboxSimulator() {
             key={s}
             onClick={() => send(s)}
             dir="auto"
-            className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+            className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
           >
             {s.length > 30 ? s.slice(0, 30) + "…" : s}
           </button>
@@ -211,7 +211,7 @@ export function InboxSimulator() {
           onChange={(e) => setInput(e.target.value)}
           dir="auto"
           placeholder="Write a customer message…"
-          className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+          className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
         <button
           type="submit"

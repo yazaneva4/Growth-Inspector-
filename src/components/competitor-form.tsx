@@ -41,12 +41,12 @@ export function CompetitorForm() {
         onChange={(e) => setHandle(e.target.value)}
         placeholder="@competitor"
         dir="auto"
-        className="w-40 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+        className="w-40 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
       />
       <select
         value={platform}
         onChange={(e) => setPlatform(e.target.value)}
-        className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
+        className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
       >
         {["instagram", "x", "tiktok", "snapchat", "whatsapp"].map((p) => (
           <option key={p} value={p}>{p}</option>
@@ -57,7 +57,7 @@ export function CompetitorForm() {
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Notes (optional)"
         dir="auto"
-        className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
+        className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
       />
       <button
         type="submit"
