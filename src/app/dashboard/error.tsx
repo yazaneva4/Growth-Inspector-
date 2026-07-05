@@ -15,7 +15,7 @@ export default function DashboardError({
       </p>
       <h1 className="mt-3 text-3xl font-bold">Something went wrong</h1>
       <p className="mt-3 max-w-md text-slate-500" dir="auto">
-        صار خطأ بسيط — جرّب مرة ثانية. A temporary glitch; your data is safe.
+        A temporary glitch — try again; your data is safe.
       </p>
       <div className="mt-8 flex gap-3">
         <button

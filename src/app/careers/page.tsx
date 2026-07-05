@@ -64,7 +64,7 @@ export default function CareersPage() {
         {done ? (
           <div className="mt-8 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6">
             <p className="font-medium text-emerald-300">
-              شكراً! Your application is in. 🎉
+              Thank you! Your application is in. 🎉
             </p>
             <p className="mt-1 text-sm text-slate-600">
               We&apos;ll reach out by email if there&apos;s a fit.

@@ -14,8 +14,8 @@ const DEMO_VOICE: BrandVoice = {
   guardrails: ["Never promise discounts not approved by the team"],
   examples: [
     {
-      customer: "كم سعر العود؟",
-      reply: "هلا والله 🌿 أسعار العود تبدأ من ٢٥٠ ريال. تحب أرسل لك القائمة كاملة؟",
+      customer: "How much is the oud?",
+      reply: "Hello! 🌿 Our oud starts from 250 SAR. Want me to send you the full list?",
     },
   ],
 };

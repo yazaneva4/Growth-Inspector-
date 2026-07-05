@@ -8,7 +8,7 @@ export default function NotFound() {
       </p>
       <h1 className="mt-3 text-4xl font-bold">Page not found</h1>
       <p className="mt-3 max-w-md text-slate-500" dir="auto">
-        هذي الصفحة غير موجودة — This page doesn&apos;t exist or has moved.
+        This page doesn&apos;t exist or has moved.
       </p>
       <div className="mt-8 flex gap-3">
         <Link

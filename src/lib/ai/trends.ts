@@ -92,6 +92,6 @@ function fallback(summary: AnalyticsSummary): TrendRadar {
             ? "Address the recurring issue publicly and follow up fast."
             : "Create content that leans into this demand.",
     })),
-    hashtags: ["#السعودية", "#نمو", "#تسويق", "#oud", "#KSA"],
+    hashtags: ["#SaudiArabia", "#growth", "#marketing", "#oud", "#KSA"],
   };
 }

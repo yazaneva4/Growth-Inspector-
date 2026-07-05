@@ -35,7 +35,7 @@ export default function RequestAccessPage() {
     <main className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-950">
       <div className="w-full max-w-sm space-y-8">
         <div className="flex justify-center">
-          <Logo variant="light" size={44} />
+          <Logo variant="light" size={56} />
         </div>
 
         {done ? (

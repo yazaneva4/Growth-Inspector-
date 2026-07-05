@@ -50,7 +50,7 @@ export function LogoMark({
 /** Full lockup: mark + stacked "Growth / Inspector" wordmark. */
 export function Logo({
   variant = "dark",
-  size = 36,
+  size = 46,
 }: {
   variant?: "dark" | "light";
   size?: number;
@@ -61,8 +61,8 @@ export function Logo({
     <div className="flex items-center gap-2.5">
       <LogoMark size={size} />
       <div className="leading-tight">
-        <div className={`text-base font-extrabold tracking-tight ${growth}`}>Growth</div>
-        <div className={`text-[11px] font-bold uppercase tracking-wide ${accent}`}>
+        <div className={`text-lg font-extrabold tracking-tight ${growth}`}>Growth</div>
+        <div className={`text-xs font-bold uppercase tracking-wide ${accent}`}>
           Inspector
         </div>
       </div>

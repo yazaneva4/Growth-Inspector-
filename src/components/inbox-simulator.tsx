@@ -10,9 +10,9 @@ type Turn =
   | { who: "system"; body: string };
 
 const SAMPLES = [
-  "كم سعر العود الكمبودي؟ وكم يوصل للرياض؟",
-  "3ndkم توصيل اليوم؟ ابي هديه ضروري",
-  "والله خدمتكم سيئة، الطلب تأخر اسبوع كامل 😡",
+  "How much is the Cambodian oud? And how long is delivery to Riyadh?",
+  "Do you have same-day delivery? I need a gift urgently",
+  "Honestly your service is bad — my order is a week late 😡",
   "Do you ship to Jeddah and what are the prices?",
 ];
 

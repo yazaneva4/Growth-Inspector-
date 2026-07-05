@@ -30,7 +30,7 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Bilingual (AR/EN) HTML invoice, brand colors: navy / white / orange. */
+/** HTML invoice (English), brand colors: navy / white / orange. */
 export function buildInvoiceHtml(inv: InvoiceData): string {
   const rows = inv.items
     .map(
@@ -53,7 +53,7 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
         ${esc(inv.orgName)}
       </div>
       <div style="color:#fb923c;font-size:13px;margin-top:4px;">
-        فاتورة ضريبية · Tax Invoice
+        Tax Invoice
       </div>
     </div>
 
@@ -61,17 +61,17 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
       <table style="width:100%;font-size:14px;margin-bottom:24px;">
         <tr>
           <td>
-            <div style="color:#64748b;font-size:12px;">Invoice · رقم الفاتورة</div>
+            <div style="color:#64748b;font-size:12px;">Invoice number</div>
             <div style="font-weight:bold;">${esc(inv.number)}</div>
           </td>
           <td style="text-align:right;">
-            <div style="color:#64748b;font-size:12px;">Date · التاريخ</div>
+            <div style="color:#64748b;font-size:12px;">Date</div>
             <div style="font-weight:bold;">${esc(inv.date)}</div>
           </td>
         </tr>
         <tr>
           <td colspan="2" style="padding-top:16px;">
-            <div style="color:#64748b;font-size:12px;">Billed to · الفاتورة إلى</div>
+            <div style="color:#64748b;font-size:12px;">Billed to</div>
             <div style="font-weight:bold;">${esc(inv.customerName)}</div>
             <div style="color:#64748b;">${esc(inv.customerEmail)}</div>
           </td>
@@ -81,10 +81,10 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <thead>
           <tr style="background:#f8fafc;color:#334155;font-size:12px;">
-            <th style="padding:10px 12px;text-align:left;">Description · الوصف</th>
-            <th style="padding:10px 12px;text-align:center;">Qty · الكمية</th>
-            <th style="padding:10px 12px;text-align:right;">Price · السعر</th>
-            <th style="padding:10px 12px;text-align:right;">Total · الإجمالي</th>
+            <th style="padding:10px 12px;text-align:left;">Description</th>
+            <th style="padding:10px 12px;text-align:center;">Qty</th>
+            <th style="padding:10px 12px;text-align:right;">Price</th>
+            <th style="padding:10px 12px;text-align:right;">Total</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -92,22 +92,22 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
 
       <table style="width:100%;font-size:14px;margin-top:20px;">
         <tr>
-          <td style="text-align:right;color:#64748b;padding:4px 12px;">Subtotal · المجموع الفرعي</td>
+          <td style="text-align:right;color:#64748b;padding:4px 12px;">Subtotal</td>
           <td style="text-align:right;width:130px;padding:4px 0;">${fmt(inv.subtotal)} ${esc(inv.currency)}</td>
         </tr>
         <tr>
-          <td style="text-align:right;color:#64748b;padding:4px 12px;">VAT 15% · ضريبة القيمة المضافة</td>
+          <td style="text-align:right;color:#64748b;padding:4px 12px;">VAT 15%</td>
           <td style="text-align:right;padding:4px 0;">${fmt(inv.vat)} ${esc(inv.currency)}</td>
         </tr>
         <tr>
-          <td style="text-align:right;font-weight:bold;font-size:16px;padding:10px 12px;">Total · الإجمالي المستحق</td>
+          <td style="text-align:right;font-weight:bold;font-size:16px;padding:10px 12px;">Total due</td>
           <td style="text-align:right;font-weight:bold;font-size:16px;color:#f97316;padding:10px 0;">${fmt(inv.total)} ${esc(inv.currency)}</td>
         </tr>
       </table>
     </div>
 
     <div style="background:#f8fafc;padding:18px 32px;font-size:12px;color:#64748b;text-align:center;">
-      Sent with Growth Inspector · شكراً لتعاملكم معنا
+      Sent with Growth Inspector - thank you for your business
     </div>
   </div>
 </body>
@@ -122,7 +122,7 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
 export async function sendInvoiceEmail(inv: InvoiceData): Promise<boolean> {
   return sendEmail({
     to: inv.customerEmail,
-    subject: `Invoice ${inv.number} · فاتورة من ${inv.orgName}`,
+    subject: `Invoice ${inv.number} from ${inv.orgName}`,
     html: buildInvoiceHtml(inv),
   });
 }

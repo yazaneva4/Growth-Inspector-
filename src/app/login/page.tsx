@@ -111,7 +111,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <Logo variant="light" size={44} />
+          <Logo variant="light" size={56} />
         </div>
 
         {/* Greeting */}

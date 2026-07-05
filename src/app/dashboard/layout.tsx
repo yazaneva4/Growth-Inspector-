@@ -111,7 +111,7 @@ export default async function DashboardLayout({
         {/* Mobile top bar with collapsible menu */}
         <details className="group border-b border-slate-200 bg-white lg:hidden">
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
-            <Logo variant="light" size={32} />
+            <Logo variant="light" size={40} />
             <span className="flex items-center gap-3">
               <RealtimeRefresh />
               <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 group-open:hidden">

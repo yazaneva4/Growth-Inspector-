@@ -11,6 +11,11 @@ const LIVE_TABLES = [
   "invoices",
   "competitors",
   "access_requests",
+  "organizations",
+  "memberships",
+  "connected_accounts",
+  "team_invites",
+  "job_applications",
 ];
 
 export function RealtimeRefresh() {

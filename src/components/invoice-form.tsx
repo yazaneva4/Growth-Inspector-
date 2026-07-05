@@ -77,7 +77,7 @@ export function InvoiceForm() {
           required
           value={customerName}
           onChange={(e) => setCustomerName(e.target.value)}
-          placeholder="Customer name · اسم العميل"
+          placeholder="Customer name"
           dir="auto"
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
@@ -97,7 +97,7 @@ export function InvoiceForm() {
             required
             value={l.description}
             onChange={(e) => setLine(i, { description: e.target.value })}
-            placeholder="Description · الوصف"
+            placeholder="Description"
             dir="auto"
             className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
           />

@@ -3,10 +3,9 @@ import { respond } from "@/lib/ai/responder";
 import type { BrandVoice, Organization } from "@/lib/types";
 import crypto from "node:crypto";
 
-const GREETING_AR = "مرحباً بكم! أنا مساعد Growth Inspector. كيف أقدر أساعدك اليوم؟";
 const GREETING_EN = "Hi, thanks for calling! I'm your Growth Inspector assistant. How can I help you today?";
-const GOODBYE_TIMEOUT = "لم نسمع أي رد، شكراً لاتصالكم. مع السلامة.";
-const GOODBYE_ESCALATE_AR = "شكراً لك، بنوصل طلبك لأحد فريقنا وبيتواصلون معك قريباً. مع السلامة.";
+const GOODBYE_TIMEOUT = "We did not hear a response - thank you for calling. Goodbye.";
+const GOODBYE_ESCALATE = "Thank you - we will pass your request to our team and they will contact you soon. Goodbye.";
 const NOT_CONFIGURED = "This number is not yet connected to a Growth Inspector workspace. Goodbye.";
 const AI_OFF = "This line's AI assistant is currently unavailable. Please try again later. Goodbye.";
 
@@ -81,10 +80,7 @@ export async function greetCaller(opts: {
   }
 
   return {
-    say: [
-      { text: GREETING_AR, lang: "ar" },
-      { text: GREETING_EN, lang: "en" },
-    ],
+    say: [{ text: GREETING_EN, lang: "en" }],
     hangup: false,
   };
 }
@@ -192,7 +188,7 @@ export async function handleVoiceTurn(opts: {
       draft: result.reply || null,
     });
     return {
-      say: [{ text: GOODBYE_ESCALATE_AR, lang: "ar" }],
+      say: [{ text: GOODBYE_ESCALATE, lang: "en" }],
       hangup: true,
     };
   }
