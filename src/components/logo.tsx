@@ -20,13 +20,6 @@ export function LogoMark({
       className={`flex-shrink-0 ${className}`}
       aria-hidden
     >
-      <defs>
-        <radialGradient id="giTileGlow" cx="0.72" cy="0.22" r="1.1">
-          <stop offset="0" stopColor="#44579E" />
-          <stop offset="0.45" stopColor="#22326E" />
-          <stop offset="1" stopColor="#14224F" />
-        </radialGradient>
-      </defs>
       {/* Orange G: flat (butt) ends, ring sweeping into the inward arm */}
       <path
         d="M 200 47.5 A 162.5 162.5 0 1 0 360 238.2 L 215 238.2"
@@ -36,8 +29,11 @@ export function LogoMark({
         strokeLinecap="butt"
         strokeLinejoin="round"
       />
-      {/* Navy glow tile in the G's opening */}
-      <rect x="220" y="0" width="180" height="175" rx="30" fill="url(#giTileGlow)" />
+      {/* Navy tile in the G's opening. Solid fill on purpose: this component
+          renders more than once per page, and duplicated gradient ids resolve
+          against the first (possibly display:none) copy — which silently
+          drops the fill and made the tile invisible. */}
+      <rect x="220" y="0" width="180" height="175" rx="30" fill="#1B2C66" />
       {/* Magnifier, lower-left of tile */}
       <circle cx="283" cy="88" r="36" fill="none" stroke="#ffffff" strokeWidth="13" />
       <line x1="307" y1="112" x2="330" y2="135" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
