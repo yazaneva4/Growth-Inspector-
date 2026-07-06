@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/server";
 import { handleInbound } from "@/lib/orchestrator";
+import { AIUnavailableError } from "@/lib/ai/responder";
 
 /**
  * Persisting inbox endpoint for the public demo workspace. Routes an inbound
@@ -39,6 +40,9 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ ok: true, result });
   } catch (err) {
+    if (err instanceof AIUnavailableError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
+    }
     console.error(err);
     return NextResponse.json(
       { error: "pipeline failed", detail: String(err) },

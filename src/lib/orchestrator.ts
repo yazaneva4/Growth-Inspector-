@@ -135,7 +135,6 @@ export async function handleInbound(
         reason: "ai_unavailable",
         draft: null,
       });
-      return { error: err.message };
     }
     throw err;
   }
