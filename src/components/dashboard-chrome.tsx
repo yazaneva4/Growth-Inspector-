@@ -62,9 +62,10 @@ function AccountFooter({ email }: { email: string | null }) {
 }
 
 /**
- * App-style shell: a right-hand sidebar that's persistent + collapsible to an
+ * App-style shell: a left-hand sidebar that's persistent + collapsible to an
  * icon rail on desktop, and slides in as an overlay drawer (triggered by the
  * hamburger in TopBar) on mobile — the collapse state is remembered locally.
+ * On desktop the outer window never scrolls; only the content pane does.
  */
 export function DashboardChrome({
   workspaceName,
@@ -90,16 +91,7 @@ export function DashboardChrome({
   }
 
   return (
-    <div className="flex min-h-screen bg-white text-slate-900">
-      <main className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          workspaceName={workspaceName}
-          email={email}
-          onMenuClick={() => setMobileOpen(true)}
-        />
-        <div className="flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
-      </main>
-
+    <div className="flex min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
@@ -109,8 +101,8 @@ export function DashboardChrome({
       )}
 
       <aside
-        className={`fixed inset-y-0 right-0 z-50 flex w-72 shrink-0 flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform duration-200 ease-out lg:static lg:shadow-none lg:transition-[width] ${
-          mobileOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-200 ease-out lg:static lg:h-full lg:shadow-none lg:transition-[width] ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 ${collapsed ? "lg:w-[76px]" : "lg:w-64"}`}
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-4">
@@ -128,7 +120,7 @@ export function DashboardChrome({
             aria-label="Toggle sidebar"
             className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 lg:flex"
           >
-            {collapsed ? "‹" : "›"}
+            {collapsed ? "›" : "‹"}
           </button>
           <button
             onClick={() => setMobileOpen(false)}
@@ -167,6 +159,15 @@ export function DashboardChrome({
           <AccountFooter email={email} />
         </div>
       </aside>
+
+      <main className="flex min-w-0 flex-1 flex-col lg:h-full lg:overflow-hidden">
+        <TopBar
+          workspaceName={workspaceName}
+          email={email}
+          onMenuClick={() => setMobileOpen(true)}
+        />
+        <div className="flex-1 p-4 sm:p-6 lg:overflow-y-auto lg:p-8">{children}</div>
+      </main>
     </div>
   );
 }

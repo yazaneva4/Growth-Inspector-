@@ -65,7 +65,7 @@ export function RealtimeRefresh() {
           background: pulse ? "#86efac" : connected ? "#34d399" : "#475569",
         }}
       />
-      {connected ? "Live" : "…"}
+      <span className="hidden sm:inline">{connected ? "Live" : "…"}</span>
     </span>
   );
 }
