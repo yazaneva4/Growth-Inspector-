@@ -1,5 +1,6 @@
 import { anthropic, MODELS } from "./anthropic";
 import { gemini, geminiConfigured, GEMINI_MODEL } from "./gemini";
+import { openaiChatJSON, openaiConfigured } from "./openai";
 import { withRetry } from "./retry";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
 
@@ -254,7 +255,7 @@ function decideAction(
   return { decision: replyMode === "autonomous" ? "send" : "draft" };
 }
 
-const GEMINI_RESULT_SCHEMA = {
+const COMBINED_RESULT_SCHEMA = {
   type: "object",
   properties: {
     intent: { type: "string", enum: ["price_inquiry", "complaint", "hot_lead", "spam", "support", "other"] },
@@ -269,24 +270,21 @@ const GEMINI_RESULT_SCHEMA = {
     },
     confidence: { type: "number", description: "0-1 self-assessed confidence in the reply." },
   },
-  required: ["intent", "sentiment", "language", "lead_score", "hard_block", "reply", "confidence"],
+  required: ["intent", "sentiment", "language", "lead_score", "hard_block", "hard_block_reason", "reply", "confidence"],
+  additionalProperties: false,
 } as const;
 
-/**
- * Gemini-backed pipeline (fallback provider): does classification + reply
- * generation in one call for efficiency, then applies the same decision
- * matrix as the Claude path so callers see an identical ResponderResult shape.
- */
-export async function respondWithGemini(
-  message: string,
-  opts: {
-    voice: BrandVoice;
-    replyMode: "autonomous" | "approval" | "off";
-    threshold: number;
-    history?: { author: string; body: string }[];
-    channel?: "text" | "voice";
-  },
-): Promise<ResponderResult> {
+type ResponderOpts = {
+  voice: BrandVoice;
+  replyMode: "autonomous" | "approval" | "off";
+  threshold: number;
+  history?: { author: string; body: string }[];
+  channel?: "text" | "voice";
+};
+
+/** One prompt shared by every single-call fallback provider (Gemini, OpenAI):
+ *  classify + draft the reply together, instead of two separate calls. */
+function buildCombinedPrompt(message: string, opts: ResponderOpts) {
   const history = opts.history ?? [];
   const convo = history.slice(-6).map((m) => `${m.author}: ${m.body}`).join("\n");
   const system = [
@@ -300,19 +298,15 @@ export async function respondWithGemini(
     "If intent is spam, leave reply empty.",
   ].join("\n");
   const user = `${convo ? `Conversation so far:\n${convo}\n\n` : ""}Latest customer message:\n${message}`;
+  return { system, user };
+}
 
-  const res = await withRetry(() =>
-    gemini().models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: GEMINI_RESULT_SCHEMA as never,
-      },
-    }),
-  );
-
-  const parsed = JSON.parse(res.text ?? "{}") as MessageAnalysis & { reply: string; confidence: number };
+/** Turns a parsed combined-schema result into a ResponderResult, applying
+ *  the same hard-block guardrail and decision matrix as the Claude path. */
+function finalizeCombinedResult(
+  parsed: MessageAnalysis & { reply: string; confidence: number },
+  opts: ResponderOpts,
+): ResponderResult {
   const analysis: MessageAnalysis = {
     intent: parsed.intent,
     sentiment: parsed.sentiment,
@@ -336,6 +330,52 @@ export async function respondWithGemini(
   return { analysis, reply: parsed.reply, confidence: parsed.confidence, decision, escalation_reason };
 }
 
+/**
+ * Gemini-backed pipeline (fallback provider): does classification + reply
+ * generation in one call for efficiency, then applies the same decision
+ * matrix as the Claude path so callers see an identical ResponderResult shape.
+ */
+export async function respondWithGemini(
+  message: string,
+  opts: ResponderOpts,
+): Promise<ResponderResult> {
+  const { system, user } = buildCombinedPrompt(message, opts);
+
+  const res = await withRetry(() =>
+    gemini().models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: COMBINED_RESULT_SCHEMA as never,
+      },
+    }),
+  );
+
+  const parsed = JSON.parse(res.text ?? "{}") as MessageAnalysis & { reply: string; confidence: number };
+  return finalizeCombinedResult(parsed, opts);
+}
+
+/**
+ * ChatGPT-backed pipeline — kicks in if Claude is rate-limited/unavailable
+ * and Gemini also isn't configured or fails; same single-call shape.
+ */
+export async function respondWithOpenAI(
+  message: string,
+  opts: ResponderOpts,
+): Promise<ResponderResult> {
+  const { system, user } = buildCombinedPrompt(message, opts);
+  const parsed = await withRetry(() =>
+    openaiChatJSON<MessageAnalysis & { reply: string; confidence: number }>({
+      system,
+      user,
+      schema: COMBINED_RESULT_SCHEMA,
+      schemaName: "responder_result",
+    }),
+  );
+  return finalizeCombinedResult(parsed, opts);
+}
+
 /** Thrown when no AI provider could produce a real reply. Callers should
  *  show a friendly "AI is temporarily unavailable" message — never fall
  *  back to canned/demo text as if it were a real reply. */
@@ -347,10 +387,10 @@ export class AIUnavailableError extends Error {
 }
 
 /**
- * Provider-selecting entry point: tries Claude first (best quality), falls
- * back to Gemini if Claude isn't configured or errors (each already retries
- * transient failures internally). Throws AIUnavailableError if neither
- * provider is configured or both fail — never silently returns a demo reply.
+ * Provider-selecting entry point: tries Claude first (best quality), then
+ * OpenAI (covers Claude usage-limit/outage), then Gemini, each already
+ * retrying transient failures internally. Throws AIUnavailableError if no
+ * provider is configured or all fail — never silently returns a demo reply.
  */
 export async function respondBestAvailable(
   message: string,
@@ -368,6 +408,14 @@ export async function respondBestAvailable(
       return await respond(message, opts);
     } catch (err) {
       console.error("Claude responder failed, falling back:", err);
+      lastErr = err;
+    }
+  }
+  if (openaiConfigured()) {
+    try {
+      return await respondWithOpenAI(message, opts);
+    } catch (err) {
+      console.error("OpenAI responder failed, falling back:", err);
       lastErr = err;
     }
   }
