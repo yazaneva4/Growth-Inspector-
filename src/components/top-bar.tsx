@@ -6,9 +6,11 @@ import { NotificationBell } from "@/components/notification-bell";
 export function TopBar({
   workspaceName,
   email,
+  onMenuClick,
 }: {
   workspaceName: string;
   email: string | null;
+  onMenuClick?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -67,6 +69,13 @@ export function TopBar({
         >
           {initial}
         </div>
+        <button
+          onClick={onMenuClick}
+          aria-label="Open menu"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors lg:hidden"
+        >
+          ☰
+        </button>
       </div>
     </div>
   );
