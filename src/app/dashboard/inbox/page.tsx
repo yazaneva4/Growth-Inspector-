@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { InboxSimulator } from "@/components/inbox-simulator";
+import { AssignControl } from "@/components/assign-control";
 
 export const dynamic = "force-dynamic";
 
@@ -50,15 +51,24 @@ export default async function InboxPage({
     last_message_at: string;
     title: string | null;
     urgency: string | null;
+    assigned_to: string | null;
   }> = [];
   if (org) {
     const { data } = await db
       .from("conversations")
-      .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency")
+      .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency, assigned_to")
       .eq("org_id", org.id)
       .order("last_message_at", { ascending: false })
       .limit(50);
     conversations = data ?? [];
+  }
+
+  let teammates: { user_id: string; email: string }[] = [];
+  if (!ctx.isDemo) {
+    const { data } = await db.rpc("org_teammates");
+    teammates = ((data ?? []) as { user_id: string; email: string; role: string }[]).map(
+      (t) => ({ user_id: t.user_id, email: t.email }),
+    );
   }
 
   const selectedId = sp.c;
@@ -83,7 +93,7 @@ export default async function InboxPage({
     if (!selected) {
       const { data: c } = await db
         .from("conversations")
-        .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency")
+        .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency, assigned_to")
         .eq("id", selectedId)
         .maybeSingle();
       selected = c ?? null;
@@ -164,6 +174,23 @@ export default async function InboxPage({
                           hot lead
                         </span>
                       )}
+                      {!ctx.isDemo && (
+                        <span
+                          className={`rounded border px-1.5 py-0.5 text-[10px] ${
+                            c.assigned_to
+                              ? c.assigned_to === ctx.userId
+                                ? "border-emerald-500/40 text-emerald-600"
+                                : "border-slate-300 text-slate-500"
+                              : "border-amber-500/40 text-amber-700"
+                          }`}
+                        >
+                          {c.assigned_to
+                            ? c.assigned_to === ctx.userId
+                              ? "you"
+                              : "assigned"
+                            : "unassigned"}
+                        </span>
+                      )}
                     </div>
                   </Link>
                 );
@@ -187,11 +214,21 @@ export default async function InboxPage({
                     {selected.customer_name ?? selected.customer_handle} · {selected.platform}
                   </div>
                 </div>
-                {selected.status === "escalated" && (
-                  <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-600">
-                    escalated
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {selected.status === "escalated" && (
+                    <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-600">
+                      escalated
+                    </span>
+                  )}
+                  {!ctx.isDemo && ctx.userId && (
+                    <AssignControl
+                      conversationId={selected.id}
+                      assignedTo={selected.assigned_to}
+                      currentUserId={ctx.userId}
+                      teammates={teammates}
+                    />
+                  )}
+                </div>
               </div>
               <div className="mt-4 space-y-3">
                 {messages.map((m) => {
