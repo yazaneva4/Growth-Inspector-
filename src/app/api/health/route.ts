@@ -14,7 +14,8 @@ export async function GET() {
     integrations: {
       supabase: has(process.env.NEXT_PUBLIC_SUPABASE_URL) ? "configured" : "fallback",
       supabase_service_role: has(process.env.SUPABASE_SERVICE_ROLE_KEY), // also enables the sign-in self-heal for accounts stuck unconfirmed
-      anthropic: has(process.env.ANTHROPIC_API_KEY), // AI responder + weekly report
+      anthropic: has(process.env.ANTHROPIC_API_KEY), // AI responder + weekly report (primary provider)
+      gemini: has(process.env.GEMINI_API_KEY), // responder fallback + Growth Agent
       email_transport: emailTransport(), // "gmail" | "resend" | "none" — invoices, access emails, inbox replies
       meta_verify_token: has(process.env.META_VERIFY_TOKEN), // WhatsApp/IG webhooks
       meta_access_token: has(process.env.META_ACCESS_TOKEN), // real WhatsApp/Instagram DM sending

@@ -1,4 +1,5 @@
 import { anthropic, MODELS } from "./anthropic";
+import { gemini, geminiConfigured, GEMINI_MODEL } from "./gemini";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
 
 /** Topics the responder must never engage — hard-escalate to a human. */
@@ -286,22 +287,134 @@ export async function respond(
     opts.channel ?? "text",
   );
 
-  // Decision matrix.
-  let decision: ResponderResult["decision"];
-  let escalation_reason: ResponderResult["escalation_reason"];
+  const { decision, escalation_reason } = decideAction(analysis, confidence, opts.replyMode, opts.threshold);
+  return { analysis, reply, confidence, decision, escalation_reason };
+}
 
-  if (opts.replyMode === "off") {
-    decision = "draft";
-  } else if (confidence < opts.threshold) {
-    decision = "escalate";
-    escalation_reason = "low_confidence";
-  } else if (analysis.intent === "hot_lead" || analysis.lead_score >= 80) {
+/** Shared send/draft/escalate matrix used by every provider. */
+function decideAction(
+  analysis: MessageAnalysis,
+  confidence: number,
+  replyMode: "autonomous" | "approval" | "off",
+  threshold: number,
+): Pick<ResponderResult, "decision" | "escalation_reason"> {
+  if (replyMode === "off") return { decision: "draft" };
+  if (confidence < threshold) return { decision: "escalate", escalation_reason: "low_confidence" };
+  if (analysis.intent === "hot_lead" || analysis.lead_score >= 80) {
     // High-value leads always get a human eye even when confident.
-    decision = opts.replyMode === "autonomous" ? "send" : "draft";
-    escalation_reason = "high_intent";
-  } else {
-    decision = opts.replyMode === "autonomous" ? "send" : "draft";
+    return { decision: replyMode === "autonomous" ? "send" : "draft", escalation_reason: "high_intent" };
+  }
+  return { decision: replyMode === "autonomous" ? "send" : "draft" };
+}
+
+const GEMINI_RESULT_SCHEMA = {
+  type: "object",
+  properties: {
+    intent: { type: "string", enum: ["price_inquiry", "complaint", "hot_lead", "spam", "support", "other"] },
+    sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
+    language: { type: "string", enum: ["ar", "ar-dialect", "arabizi", "en", "mixed"] },
+    lead_score: { type: "number" },
+    hard_block: { type: "boolean" },
+    hard_block_reason: { type: "string" },
+    reply: {
+      type: "string",
+      description: "Customer-facing reply in the SAME language/dialect the customer used. Empty string if hard_block or spam.",
+    },
+    confidence: { type: "number", description: "0-1 self-assessed confidence in the reply." },
+  },
+  required: ["intent", "sentiment", "language", "lead_score", "hard_block", "reply", "confidence"],
+} as const;
+
+/**
+ * Gemini-backed pipeline (fallback provider): does classification + reply
+ * generation in one call for efficiency, then applies the same decision
+ * matrix as the Claude path so callers see an identical ResponderResult shape.
+ */
+export async function respondWithGemini(
+  message: string,
+  opts: {
+    voice: BrandVoice;
+    replyMode: "autonomous" | "approval" | "off";
+    threshold: number;
+    history?: { author: string; body: string }[];
+    channel?: "text" | "voice";
+  },
+): Promise<ResponderResult> {
+  const history = opts.history ?? [];
+  const convo = history.slice(-6).map((m) => `${m.author}: ${m.body}`).join("\n");
+  const system = [
+    "You are the intelligence layer of Growth Inspector, a Saudi social media AI.",
+    "Understand Saudi Arabic dialects (Khaleeji/Najdi), Arabizi, MSA, English, and code-switching.",
+    "Classify the message AND draft the reply in one pass.",
+    "",
+    `Brand voice:\n${brandVoiceBlock(opts.voice)}`,
+    "",
+    "Set hard_block=true for: " + HARD_BLOCK_TOPICS.join("; ") + ". These need a human — leave reply empty.",
+    "If intent is spam, leave reply empty.",
+  ].join("\n");
+  const user = `${convo ? `Conversation so far:\n${convo}\n\n` : ""}Latest customer message:\n${message}`;
+
+  const res = await gemini().models.generateContent({
+    model: GEMINI_MODEL,
+    contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: GEMINI_RESULT_SCHEMA as never,
+    },
+  });
+
+  const parsed = JSON.parse(res.text ?? "{}") as MessageAnalysis & { reply: string; confidence: number };
+  const analysis: MessageAnalysis = {
+    intent: parsed.intent,
+    sentiment: parsed.sentiment,
+    language: parsed.language,
+    lead_score: parsed.lead_score,
+    hard_block: parsed.hard_block,
+    hard_block_reason: parsed.hard_block_reason,
+  };
+
+  if (analysis.hard_block || analysis.intent === "spam") {
+    return {
+      analysis,
+      reply: "",
+      confidence: 0,
+      decision: analysis.intent === "spam" ? "draft" : "escalate",
+      escalation_reason: analysis.hard_block ? "hard_block_topic" : undefined,
+    };
   }
 
-  return { analysis, reply, confidence, decision, escalation_reason };
+  const { decision, escalation_reason } = decideAction(analysis, parsed.confidence, opts.replyMode, opts.threshold);
+  return { analysis, reply: parsed.reply, confidence: parsed.confidence, decision, escalation_reason };
+}
+
+/**
+ * Provider-selecting entry point: tries Claude first (best quality), falls
+ * back to Gemini (free tier) if Claude isn't configured or errors, and
+ * finally to the keyword-only demo responder if neither is available.
+ */
+export async function respondBestAvailable(
+  message: string,
+  opts: {
+    voice: BrandVoice;
+    replyMode: "autonomous" | "approval" | "off";
+    threshold: number;
+    history?: { author: string; body: string }[];
+    channel?: "text" | "voice";
+  },
+): Promise<ResponderResult> {
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      return await respond(message, opts);
+    } catch (err) {
+      console.error("Claude responder failed, falling back:", err);
+    }
+  }
+  if (geminiConfigured()) {
+    try {
+      return await respondWithGemini(message, opts);
+    } catch (err) {
+      console.error("Gemini responder failed, falling back:", err);
+    }
+  }
+  return fallbackRespond(message, opts.voice);
 }

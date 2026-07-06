@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { respond, fallbackRespond } from "@/lib/ai/responder";
+import { respondBestAvailable } from "@/lib/ai/responder";
 import { getAdapter, type InboundMessage } from "@/lib/platforms/adapter";
 import type { BrandVoice, Organization } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -79,17 +79,14 @@ export async function handleInbound(
     .order("created_at", { ascending: true })
     .limit(12);
 
-  // 5. Run the responder pipeline. Without a configured model key, fall back
-  // to a keyword-based demo reply so ingestion still works end to end.
+  // 5. Run the responder pipeline: Claude -> Gemini -> keyword demo fallback.
   const voice = (org.brand_voice ?? {}) as BrandVoice;
-  const result = process.env.ANTHROPIC_API_KEY
-    ? await respond(inbound.body, {
-        voice,
-        replyMode: org.reply_mode,
-        threshold: Number(org.confidence_threshold),
-        history: history ?? [],
-      })
-    : fallbackRespond(inbound.body, voice);
+  const result = await respondBestAvailable(inbound.body, {
+    voice,
+    replyMode: org.reply_mode,
+    threshold: Number(org.confidence_threshold),
+    history: history ?? [],
+  });
 
   // 6. Update conversation signals.
   await db

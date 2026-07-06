@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { respond, fallbackRespond } from "@/lib/ai/responder";
+import { respondBestAvailable } from "@/lib/ai/responder";
 import type { BrandVoice, ReplyMode } from "@/lib/types";
 
 /**
  * Live demo endpoint: runs the full responder pipeline on a single message
- * without touching the database. Uses the real model when ANTHROPIC_API_KEY
- * is set; otherwise falls back to a keyword-based demo reply (flagged via
- * `demo: true`) so the product stays explorable without a paid key.
+ * without touching the database. Tries Claude, then Gemini, then a
+ * keyword-based demo reply (flagged via `demo: true`) so the product stays
+ * explorable even without any paid key configured.
  */
 const DEMO_VOICE: BrandVoice = {
   tone: "Friendly, warm, professional Saudi brand. Uses light, respectful Khaleeji dialect.",
@@ -28,17 +28,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "message required" }, { status: 400 });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(fallbackRespond(message, DEMO_VOICE));
-  }
-
   const replyMode: ReplyMode = body?.replyMode ?? "autonomous";
   const threshold: number =
     typeof body?.threshold === "number" ? body.threshold : 0.75;
   const history: { author: string; body: string }[] = body?.history ?? [];
 
   try {
-    const result = await respond(message, {
+    const result = await respondBestAvailable(message, {
       voice: DEMO_VOICE,
       replyMode,
       threshold,
