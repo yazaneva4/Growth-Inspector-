@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -70,7 +71,7 @@ function AccountFooter({ email }: { email: string | null }) {
         href="/login"
         className="block rounded-lg bg-emerald-500 px-3 py-1.5 text-center font-medium text-white hover:bg-emerald-600 transition-colors"
       >
-        Request access
+        Sign in / Create account
       </Link>
     </div>
   );
@@ -82,6 +83,10 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const ctx = await getCurrentContext();
+
+  if (!ctx.isDemo && !ctx.onboarded) {
+    redirect("/onboarding");
+  }
 
   const db = ctx.isDemo ? createPublicClient() : await createClient();
   const { data: org } = await db

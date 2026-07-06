@@ -1,8 +1,40 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { respondBestAvailable } from "@/lib/ai/responder";
+import { respondBestAvailable, AIUnavailableError } from "@/lib/ai/responder";
 import { getAdapter, type InboundMessage } from "@/lib/platforms/adapter";
-import type { BrandVoice, Organization } from "@/lib/types";
+import type { BrandVoice, Organization, Intent } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/** Short, human-scannable conversation title from the AI's classification —
+ *  no extra model call needed, updates every turn as context accumulates. */
+function titleFor(intent: Intent, sentiment: string, message: string): string {
+  const lower = message.toLowerCase();
+  switch (intent) {
+    case "price_inquiry":
+      return "Pricing Inquiry";
+    case "complaint":
+      if (/ship|deliver|late|delay/.test(lower)) return "Complaint About Shipment";
+      return "Customer Complaint";
+    case "hot_lead":
+      return "Sales Opportunity";
+    case "support":
+      if (/refund/.test(lower)) return "Refund Request";
+      if (/partner/.test(lower)) return "Partnership Request";
+      if (/deliver|ship/.test(lower)) return "Delivery Question";
+      if (/recommend|suggest|which one/.test(lower)) return "Product Recommendation";
+      return "Support Request";
+    case "spam":
+      return "Spam";
+    default:
+      return sentiment === "negative" ? "Customer Feedback" : "General Inquiry";
+  }
+}
+
+function urgencyFor(intent: Intent, sentiment: string, decision: string): "low" | "normal" | "high" {
+  if (intent === "complaint" && sentiment === "negative") return "high";
+  if (decision === "escalate") return "high";
+  if (intent === "hot_lead") return "normal";
+  return "low";
+}
 
 /**
  * Core ingestion → AI → action pipeline. Defaults to the service-role client
@@ -79,16 +111,36 @@ export async function handleInbound(
     .order("created_at", { ascending: true })
     .limit(12);
 
-  // 5. Run the responder pipeline: Claude -> Gemini -> keyword demo fallback.
+  // 5. Run the responder pipeline: Claude -> Gemini, both retrying transient
+  // failures. If neither can produce a reply, flag it for human attention
+  // instead of losing the message or faking a response.
   const voice = (org.brand_voice ?? {}) as BrandVoice;
-  const result = await respondBestAvailable(inbound.body, {
-    voice,
-    replyMode: org.reply_mode,
-    threshold: Number(org.confidence_threshold),
-    history: history ?? [],
-  });
+  let result;
+  try {
+    result = await respondBestAvailable(inbound.body, {
+      voice,
+      replyMode: org.reply_mode,
+      threshold: Number(org.confidence_threshold),
+      history: history ?? [],
+    });
+  } catch (err) {
+    if (err instanceof AIUnavailableError) {
+      await db
+        .from("conversations")
+        .update({ status: "escalated", urgency: "high", last_message_at: new Date().toISOString() })
+        .eq("id", conversation.id);
+      await db.from("escalations").insert({
+        org_id: org.id,
+        conversation_id: conversation.id,
+        reason: "ai_unavailable",
+        draft: null,
+      });
+      return { error: err.message };
+    }
+    throw err;
+  }
 
-  // 6. Update conversation signals.
+  // 6. Update conversation signals + auto-generated title/urgency.
   await db
     .from("conversations")
     .update({
@@ -98,6 +150,10 @@ export async function handleInbound(
       lead_score: result.analysis.lead_score,
       last_message_at: new Date().toISOString(),
       status: result.decision === "escalate" ? "escalated" : "open",
+      title: titleFor(result.analysis.intent, result.analysis.sentiment, inbound.body),
+      urgency: urgencyFor(result.analysis.intent, result.analysis.sentiment, result.decision),
+      ai_confidence: result.confidence,
+      summary: inbound.body.slice(0, 140),
     })
     .eq("id", conversation.id);
 

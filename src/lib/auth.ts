@@ -7,6 +7,8 @@ export interface CurrentContext {
   orgSlug: string;
   /** True when viewing the public demo (not signed in). */
   isDemo: boolean;
+  /** False until the signed-in user has completed the onboarding form. */
+  onboarded: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ export async function getCurrentContext(): Promise<CurrentContext> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { email: null, orgSlug: "demo", isDemo: true };
+    return { email: null, orgSlug: "demo", isDemo: true, onboarded: true };
   }
 
   // Accept any pending team invites for this user's email (joins their
@@ -31,11 +33,13 @@ export async function getCurrentContext(): Promise<CurrentContext> {
   // Find an existing membership/org for this user.
   const { data: membership } = await supabase
     .from("memberships")
-    .select("organizations(slug)")
+    .select("organizations(slug, onboarded)")
     .limit(1)
     .maybeSingle();
 
-  let slug = (membership?.organizations as { slug?: string } | null)?.slug;
+  type OrgRow = { slug?: string; onboarded?: boolean };
+  let slug = (membership?.organizations as OrgRow | null)?.slug;
+  let onboarded = (membership?.organizations as OrgRow | null)?.onboarded ?? false;
 
   // First login → create their workspace.
   if (!slug) {
@@ -45,15 +49,17 @@ export async function getCurrentContext(): Promise<CurrentContext> {
     await supabase.rpc("create_organization", { org_name: defaultName });
     const { data: created } = await supabase
       .from("memberships")
-      .select("organizations(slug)")
+      .select("organizations(slug, onboarded)")
       .limit(1)
       .maybeSingle();
-    slug = (created?.organizations as { slug?: string } | null)?.slug;
+    slug = (created?.organizations as OrgRow | null)?.slug;
+    onboarded = (created?.organizations as OrgRow | null)?.onboarded ?? false;
   }
 
   return {
     email: user.email ?? null,
     orgSlug: slug ?? "demo",
     isDemo: !slug,
+    onboarded,
   };
 }

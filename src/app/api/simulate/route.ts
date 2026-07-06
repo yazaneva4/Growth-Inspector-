@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { respondBestAvailable } from "@/lib/ai/responder";
+import { respondBestAvailable, AIUnavailableError } from "@/lib/ai/responder";
 import type { BrandVoice, ReplyMode } from "@/lib/types";
 
 /**
  * Live demo endpoint: runs the full responder pipeline on a single message
- * without touching the database. Tries Claude, then Gemini, then a
- * keyword-based demo reply (flagged via `demo: true`) so the product stays
- * explorable even without any paid key configured.
+ * without touching the database. Tries Claude, then Gemini — always a real
+ * AI-generated reply; never demo/canned text.
  */
 const DEMO_VOICE: BrandVoice = {
   tone: "Friendly, warm, professional Saudi brand. Uses light, respectful Khaleeji dialect.",
@@ -42,6 +41,9 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (err) {
+    if (err instanceof AIUnavailableError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
+    }
     console.error(err);
     return NextResponse.json(
       { error: "responder failed", detail: String(err) },

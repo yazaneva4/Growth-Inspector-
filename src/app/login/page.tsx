@@ -218,14 +218,8 @@ export default function LoginPage() {
           Continue as guest
         </Link>
 
-        {/* Request access + back link */}
-        <div className="space-y-2 text-center">
-          <p className="text-xs text-slate-500">
-            No account?{" "}
-            <Link href="/request-access" className="text-emerald-500 hover:underline">
-              Request access
-            </Link>
-          </p>
+        {/* Back link */}
+        <div className="text-center">
           <Link href="/" className="block text-xs text-slate-600 hover:text-slate-950">
             ← Back home
           </Link>

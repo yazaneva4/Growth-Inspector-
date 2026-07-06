@@ -48,11 +48,13 @@ export default async function InboxPage({
     status: string;
     lead_score: number | null;
     last_message_at: string;
+    title: string | null;
+    urgency: string | null;
   }> = [];
   if (org) {
     const { data } = await db
       .from("conversations")
-      .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at")
+      .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency")
       .eq("org_id", org.id)
       .order("last_message_at", { ascending: false })
       .limit(50);
@@ -81,7 +83,7 @@ export default async function InboxPage({
     if (!selected) {
       const { data: c } = await db
         .from("conversations")
-        .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at")
+        .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency")
         .eq("id", selectedId)
         .maybeSingle();
       selected = c ?? null;
@@ -128,17 +130,23 @@ export default async function InboxPage({
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold ${badge.cls}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${badge.cls}`}>
                           {badge.label}
                         </span>
                         <span className="truncate text-sm font-medium" dir="auto">
-                          {c.customer_name ?? c.customer_handle}
+                          {c.title ?? c.customer_name ?? c.customer_handle}
                         </span>
+                        {c.urgency === "high" && (
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" title="High urgency" />
+                        )}
                       </div>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="shrink-0 text-[10px] text-slate-500">
                         {timeAgo(c.last_message_at)}
                       </span>
+                    </div>
+                    <div className="mt-0.5 truncate text-xs text-slate-500" dir="auto">
+                      {c.customer_name ?? c.customer_handle}
                     </div>
                     <div className="mt-1 flex items-center gap-1.5">
                       {c.intent && (
@@ -171,11 +179,13 @@ export default async function InboxPage({
           ) : selected ? (
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div className="font-semibold" dir="auto">
-                  {selected.customer_name ?? selected.customer_handle}
-                  <span className="ml-2 text-xs text-slate-500">
-                    {selected.platform}
-                  </span>
+                <div>
+                  <div className="font-semibold" dir="auto">
+                    {selected.title ?? selected.customer_name ?? selected.customer_handle}
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-500" dir="auto">
+                    {selected.customer_name ?? selected.customer_handle} · {selected.platform}
+                  </div>
                 </div>
                 {selected.status === "escalated" && (
                   <span className="rounded-full border border-rose-500/40 px-2 py-0.5 text-xs text-rose-600">

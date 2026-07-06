@@ -10,7 +10,6 @@ const LIVE_TABLES = [
   "escalations",
   "invoices",
   "competitors",
-  "access_requests",
   "organizations",
   "memberships",
   "connected_accounts",

@@ -1,5 +1,6 @@
 import { anthropic, MODELS } from "./anthropic";
 import { gemini, geminiConfigured, GEMINI_MODEL } from "./gemini";
+import { withRetry } from "./retry";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
 
 /** Topics the responder must never engage — hard-escalate to a human. */
@@ -28,62 +29,6 @@ export interface ResponderResult {
   /** What the orchestrator should do given org reply_mode + threshold. */
   decision: "send" | "draft" | "escalate";
   escalation_reason?: "low_confidence" | "hard_block_topic" | "high_intent";
-  /** true when this came from the rule-based fallback, not the live model. */
-  demo?: boolean;
-}
-
-/**
- * Keyword-only stand-in used when ANTHROPIC_API_KEY isn't configured, so the
- * product is still explorable without a (paid, metered) live model call.
- * Clearly flagged via `demo: true` — callers must surface that to the user
- * rather than presenting it as a real AI reply.
- */
-export function fallbackRespond(
-  message: string,
-  voice: BrandVoice,
-): ResponderResult {
-  const lower = message.toLowerCase();
-  let intent: Intent = "other";
-  let sentiment: MessageAnalysis["sentiment"] = "neutral";
-  let reply: string;
-
-  if (/\b(bad|terrible|angry|complain|late|worst|😡|disappointed)\b/.test(lower)) {
-    intent = "complaint";
-    sentiment = "negative";
-    reply = "I'm really sorry to hear that. I've flagged this for our team to follow up with you directly.";
-  } else if (/\b(price|cost|how much|\$|sar|riyal)\b/.test(lower)) {
-    intent = "price_inquiry";
-    sentiment = "positive";
-    reply = voice.facts?.trim()
-      ? `Thanks for asking! Here's what we offer: ${voice.facts.slice(0, 200)}`
-      : "Thanks for asking! Could you tell me which item you're interested in so I can share pricing?";
-  } else if (/\b(buy|order|want it|interested|purchase)\b/.test(lower)) {
-    intent = "hot_lead";
-    sentiment = "positive";
-    reply = "Great, I'd love to help you with that! Someone from our team will follow up shortly to complete your order.";
-  } else if (/\b(spam|promo|win|prize|click here)\b/.test(lower)) {
-    intent = "spam";
-    reply = "";
-  } else if (/\b(help|issue|problem|not working|support)\b/.test(lower)) {
-    intent = "support";
-    reply = "Thanks for reaching out — could you share a bit more detail so we can help you quickly?";
-  } else {
-    reply = "Thanks for your message! We'll get back to you shortly.";
-  }
-
-  return {
-    analysis: {
-      intent,
-      sentiment,
-      language: "en",
-      lead_score: intent === "hot_lead" ? 75 : intent === "price_inquiry" ? 55 : 20,
-      hard_block: false,
-    },
-    reply,
-    confidence: 0.6,
-    decision: intent === "spam" ? "draft" : "send",
-    demo: true,
-  };
 }
 
 const ANALYSIS_SCHEMA = {
@@ -160,14 +105,16 @@ async function structured<T>(
   schema: object,
   toolName: string,
 ): Promise<T> {
-  const res = await anthropic().messages.create({
-    model,
-    max_tokens: 1024,
-    system,
-    tools: [{ name: toolName, description: `Return ${toolName}`, input_schema: schema as never }],
-    tool_choice: { type: "tool", name: toolName },
-    messages: [{ role: "user", content: user }],
-  });
+  const res = await withRetry(() =>
+    anthropic().messages.create({
+      model,
+      max_tokens: 1024,
+      system,
+      tools: [{ name: toolName, description: `Return ${toolName}`, input_schema: schema as never }],
+      tool_choice: { type: "tool", name: toolName },
+      messages: [{ role: "user", content: user }],
+    }),
+  );
   const block = res.content.find((b) => b.type === "tool_use");
   if (!block || block.type !== "tool_use") {
     throw new Error("Model did not return structured output");
@@ -354,14 +301,16 @@ export async function respondWithGemini(
   ].join("\n");
   const user = `${convo ? `Conversation so far:\n${convo}\n\n` : ""}Latest customer message:\n${message}`;
 
-  const res = await gemini().models.generateContent({
-    model: GEMINI_MODEL,
-    contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: GEMINI_RESULT_SCHEMA as never,
-    },
-  });
+  const res = await withRetry(() =>
+    gemini().models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: GEMINI_RESULT_SCHEMA as never,
+      },
+    }),
+  );
 
   const parsed = JSON.parse(res.text ?? "{}") as MessageAnalysis & { reply: string; confidence: number };
   const analysis: MessageAnalysis = {
@@ -387,10 +336,21 @@ export async function respondWithGemini(
   return { analysis, reply: parsed.reply, confidence: parsed.confidence, decision, escalation_reason };
 }
 
+/** Thrown when no AI provider could produce a real reply. Callers should
+ *  show a friendly "AI is temporarily unavailable" message — never fall
+ *  back to canned/demo text as if it were a real reply. */
+export class AIUnavailableError extends Error {
+  constructor(message = "AI service is temporarily unavailable. Please try again shortly.") {
+    super(message);
+    this.name = "AIUnavailableError";
+  }
+}
+
 /**
  * Provider-selecting entry point: tries Claude first (best quality), falls
- * back to Gemini (free tier) if Claude isn't configured or errors, and
- * finally to the keyword-only demo responder if neither is available.
+ * back to Gemini if Claude isn't configured or errors (each already retries
+ * transient failures internally). Throws AIUnavailableError if neither
+ * provider is configured or both fail — never silently returns a demo reply.
  */
 export async function respondBestAvailable(
   message: string,
@@ -402,19 +362,23 @@ export async function respondBestAvailable(
     channel?: "text" | "voice";
   },
 ): Promise<ResponderResult> {
+  let lastErr: unknown;
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       return await respond(message, opts);
     } catch (err) {
       console.error("Claude responder failed, falling back:", err);
+      lastErr = err;
     }
   }
   if (geminiConfigured()) {
     try {
       return await respondWithGemini(message, opts);
     } catch (err) {
-      console.error("Gemini responder failed, falling back:", err);
+      console.error("Gemini responder failed:", err);
+      lastErr = err;
     }
   }
-  return fallbackRespond(message, opts.voice);
+  console.error("No AI provider available:", lastErr);
+  throw new AIUnavailableError();
 }
