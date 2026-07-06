@@ -168,6 +168,14 @@ export function InboxSimulator() {
                 {t.body}
                 {t.who === "ai" && (
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                    {t.result.demo && (
+                      <span
+                        className="rounded border border-amber-500/40 bg-amber-500/15 px-1.5 py-0.5 text-amber-700"
+                        title="No ANTHROPIC_API_KEY configured — showing a rule-based sample reply, not a live AI response"
+                      >
+                        demo reply
+                      </span>
+                    )}
                     <span className={`rounded border px-1.5 py-0.5 ${decisionStyle[t.result.decision]}`}>
                       {t.result.decision} · {(t.result.confidence * 100).toFixed(0)}%
                     </span>

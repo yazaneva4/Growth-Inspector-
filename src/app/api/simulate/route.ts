@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { respond } from "@/lib/ai/responder";
+import { respond, fallbackRespond } from "@/lib/ai/responder";
 import type { BrandVoice, ReplyMode } from "@/lib/types";
 
 /**
  * Live demo endpoint: runs the full responder pipeline on a single message
- * without touching the database. Lets you try Growth Inspector's brain with
- * only an ANTHROPIC_API_KEY configured.
+ * without touching the database. Uses the real model when ANTHROPIC_API_KEY
+ * is set; otherwise falls back to a keyword-based demo reply (flagged via
+ * `demo: true`) so the product stays explorable without a paid key.
  */
 const DEMO_VOICE: BrandVoice = {
   tone: "Friendly, warm, professional Saudi brand. Uses light, respectful Khaleeji dialect.",
@@ -21,17 +22,14 @@ const DEMO_VOICE: BrandVoice = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not configured on the server." },
-      { status: 503 },
-    );
-  }
-
   const body = await req.json().catch(() => null);
   const message: string | undefined = body?.message;
   if (!message?.trim()) {
     return NextResponse.json({ error: "message required" }, { status: 400 });
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json(fallbackRespond(message, DEMO_VOICE));
   }
 
   const replyMode: ReplyMode = body?.replyMode ?? "autonomous";

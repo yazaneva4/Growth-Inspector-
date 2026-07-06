@@ -9,13 +9,6 @@ import { handleInbound } from "@/lib/orchestrator";
  * the dashboards reflect real activity.
  */
 export async function POST(req: NextRequest) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not configured on the server." },
-      { status: 503 },
-    );
-  }
-
   const body = await req.json().catch(() => null);
   const message: string | undefined = body?.message;
   if (!message?.trim()) {

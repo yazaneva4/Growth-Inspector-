@@ -27,6 +27,62 @@ export interface ResponderResult {
   /** What the orchestrator should do given org reply_mode + threshold. */
   decision: "send" | "draft" | "escalate";
   escalation_reason?: "low_confidence" | "hard_block_topic" | "high_intent";
+  /** true when this came from the rule-based fallback, not the live model. */
+  demo?: boolean;
+}
+
+/**
+ * Keyword-only stand-in used when ANTHROPIC_API_KEY isn't configured, so the
+ * product is still explorable without a (paid, metered) live model call.
+ * Clearly flagged via `demo: true` — callers must surface that to the user
+ * rather than presenting it as a real AI reply.
+ */
+export function fallbackRespond(
+  message: string,
+  voice: BrandVoice,
+): ResponderResult {
+  const lower = message.toLowerCase();
+  let intent: Intent = "other";
+  let sentiment: MessageAnalysis["sentiment"] = "neutral";
+  let reply: string;
+
+  if (/\b(bad|terrible|angry|complain|late|worst|😡|disappointed)\b/.test(lower)) {
+    intent = "complaint";
+    sentiment = "negative";
+    reply = "I'm really sorry to hear that. I've flagged this for our team to follow up with you directly.";
+  } else if (/\b(price|cost|how much|\$|sar|riyal)\b/.test(lower)) {
+    intent = "price_inquiry";
+    sentiment = "positive";
+    reply = voice.facts?.trim()
+      ? `Thanks for asking! Here's what we offer: ${voice.facts.slice(0, 200)}`
+      : "Thanks for asking! Could you tell me which item you're interested in so I can share pricing?";
+  } else if (/\b(buy|order|want it|interested|purchase)\b/.test(lower)) {
+    intent = "hot_lead";
+    sentiment = "positive";
+    reply = "Great, I'd love to help you with that! Someone from our team will follow up shortly to complete your order.";
+  } else if (/\b(spam|promo|win|prize|click here)\b/.test(lower)) {
+    intent = "spam";
+    reply = "";
+  } else if (/\b(help|issue|problem|not working|support)\b/.test(lower)) {
+    intent = "support";
+    reply = "Thanks for reaching out — could you share a bit more detail so we can help you quickly?";
+  } else {
+    reply = "Thanks for your message! We'll get back to you shortly.";
+  }
+
+  return {
+    analysis: {
+      intent,
+      sentiment,
+      language: "en",
+      lead_score: intent === "hot_lead" ? 75 : intent === "price_inquiry" ? 55 : 20,
+      hard_block: false,
+    },
+    reply,
+    confidence: 0.6,
+    decision: intent === "spam" ? "draft" : "send",
+    demo: true,
+  };
 }
 
 const ANALYSIS_SCHEMA = {
