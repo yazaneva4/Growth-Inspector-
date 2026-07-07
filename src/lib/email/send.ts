@@ -35,7 +35,7 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
     await smtp.sendMail({
       // Gmail rewrites the sender to the authenticated account; use EMAIL_FROM
       // only for the display name part.
-      from: process.env.EMAIL_FROM ?? `Growth Inspector <${user}>`,
+      from: process.env.EMAIL_FROM ?? `Growth Space <${user}>`,
       to: mail.to,
       subject: mail.subject,
       html: mail.html,
@@ -47,7 +47,7 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
   if (transport === "resend") {
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY!);
-    const from = process.env.EMAIL_FROM ?? "Growth Inspector <onboarding@resend.dev>";
+    const from = process.env.EMAIL_FROM ?? "Growth Space <onboarding@resend.dev>";
     const base = { from, to: mail.to, subject: mail.subject };
     const { error } = await resend.emails.send(
       mail.html
