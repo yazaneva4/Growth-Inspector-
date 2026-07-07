@@ -88,6 +88,15 @@ export default function Home() {
         <Link href="/careers" className="text-slate-700 hover:text-slate-950">
           Careers — work in the Saudi growth space →
         </Link>
+        <div className="mt-4 flex items-center justify-center gap-4 text-xs">
+          <Link href="/terms" className="text-slate-500 hover:text-slate-950">
+            Terms of Service
+          </Link>
+          <span className="text-slate-300">·</span>
+          <Link href="/privacy" className="text-slate-500 hover:text-slate-950">
+            Privacy Policy
+          </Link>
+        </div>
         <div className="mt-3 text-slate-500">
           Growth Space — autonomous social customer engagement for Saudi Arabia.
         </div>

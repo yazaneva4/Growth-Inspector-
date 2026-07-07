@@ -219,10 +219,21 @@ export default function LoginPage() {
         </Link>
 
         {/* Back link */}
-        <div className="text-center">
+        <div className="space-y-2 text-center">
           <Link href="/" className="block text-xs text-slate-600 hover:text-slate-950">
             ← Back home
           </Link>
+          <p className="text-[11px] text-slate-400">
+            By continuing, you agree to our{" "}
+            <Link href="/terms" className="underline hover:text-slate-600">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline hover:text-slate-600">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </main>
