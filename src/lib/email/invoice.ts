@@ -114,6 +114,29 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
 </html>`;
 }
 
+/** Plain-text alternative — required alongside html for good deliverability
+ *  and correct rendering across mail clients (Gmail, Apple Mail, etc.). */
+function buildInvoiceText(inv: InvoiceData): string {
+  const lines = inv.items.map(
+    (it) =>
+      `${it.description}  x${it.qty}  ${fmt(it.unit_price)} ${inv.currency}  = ${fmt(it.qty * it.unit_price)} ${inv.currency}`,
+  );
+  return [
+    `${inv.orgName} — Tax Invoice`,
+    `Invoice number: ${inv.number}`,
+    `Date: ${inv.date}`,
+    `Billed to: ${inv.customerName} <${inv.customerEmail}>`,
+    "",
+    ...lines,
+    "",
+    `Subtotal: ${fmt(inv.subtotal)} ${inv.currency}`,
+    `VAT 15%: ${fmt(inv.vat)} ${inv.currency}`,
+    `Total due: ${fmt(inv.total)} ${inv.currency}`,
+    "",
+    "Sent with Growth Inspector - thank you for your business",
+  ].join("\n");
+}
+
 /**
  * Emails the invoice via the app transport (Gmail SMTP when GMAIL_USER +
  * GMAIL_APP_PASSWORD are set, else Resend). Returns true when actually
@@ -124,5 +147,6 @@ export async function sendInvoiceEmail(inv: InvoiceData): Promise<boolean> {
     to: inv.customerEmail,
     subject: `Invoice ${inv.number} from ${inv.orgName}`,
     html: buildInvoiceHtml(inv),
+    text: buildInvoiceText(inv),
   });
 }
