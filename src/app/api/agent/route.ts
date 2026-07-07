@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { runGrowthAgent } from "@/lib/ai/agent";
+import { geminiConfigured } from "@/lib/ai/gemini";
 
 /** Runs the Growth Agent (Gemini function-calling) against the signed-in
  *  workspace, or the public demo workspace when signed out. */
 export async function POST(req: NextRequest) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!geminiConfigured()) {
     return NextResponse.json(
-      { error: "GEMINI_API_KEY not configured on the server." },
+      { error: "Gemini API key not configured on the server." },
       { status: 503 },
     );
   }

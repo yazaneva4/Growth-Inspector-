@@ -1,4 +1,5 @@
 import { GrowthAgent } from "@/components/growth-agent";
+import { geminiConfigured } from "@/lib/ai/gemini";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,10 @@ export default function AgentPage() {
         <GrowthAgent />
       </div>
 
-      {!process.env.GEMINI_API_KEY && (
+      {!geminiConfigured() && (
         <p className="mt-4 text-xs text-amber-600">
-          Add GEMINI_API_KEY to enable Growth in Brilliance (free tier available
-          at aistudio.google.com).
+          Add GOOGLE_API_KEY (or GEMINI_API_KEY) to enable Growth in Brilliance
+          (free tier available at aistudio.google.com).
         </p>
       )}
     </div>
