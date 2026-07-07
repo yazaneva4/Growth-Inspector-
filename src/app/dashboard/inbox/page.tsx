@@ -71,6 +71,16 @@ export default async function InboxPage({
     );
   }
 
+  let contacts: Array<{ id: string; name: string; phone: string }> = [];
+  if (org) {
+    const { data } = await db
+      .from("backup_contacts")
+      .select("id, name, phone")
+      .eq("org_id", org.id)
+      .order("created_at");
+    contacts = data ?? [];
+  }
+
   const selectedId = sp.c;
   const showTester = sp.test === "1" || (!selectedId && conversations.length === 0);
 
@@ -119,7 +129,11 @@ export default async function InboxPage({
         </Link>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+      <div
+        className={`mt-5 grid gap-4 ${
+          contacts.length > 0 ? "lg:grid-cols-[320px_1fr_220px]" : "lg:grid-cols-[320px_1fr]"
+        }`}
+      >
         {/* Conversation list */}
         <div className="rounded-2xl border border-slate-200 bg-white p-2">
           {conversations.length === 0 ? (
@@ -262,6 +276,27 @@ export default async function InboxPage({
             </p>
           )}
         </div>
+
+        {/* Backup contacts — who to call if the AI is ever unavailable */}
+        {contacts.length > 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Need help? Call
+            </h2>
+            <div className="mt-3 space-y-3">
+              {contacts.map((c) => (
+                <a
+                  key={c.id}
+                  href={`tel:${c.phone.replace(/\s/g, "")}`}
+                  className="block rounded-xl border border-slate-200 p-3 hover:bg-slate-50"
+                >
+                  <div className="text-sm font-medium" dir="auto">{c.name}</div>
+                  <div className="mt-0.5 text-xs text-slate-500">{c.phone}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

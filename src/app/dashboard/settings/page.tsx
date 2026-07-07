@@ -4,6 +4,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { SettingsForm } from "@/components/settings-form";
 import { ConnectedAccounts } from "@/components/connected-accounts";
+import { BackupContacts } from "@/components/backup-contacts";
 import type { BrandVoice, ReplyMode } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,23 @@ export default async function SettingsPage() {
   const host = (await headers()).get("host");
   const webhookBase = `https://${host}/api/webhooks`;
 
+  let contacts: Array<{ id: string; name: string; phone: string }> = [];
+  if (!ctx.isDemo) {
+    const { data: orgRow } = await db
+      .from("organizations")
+      .select("id")
+      .eq("slug", ctx.orgSlug)
+      .maybeSingle();
+    if (orgRow) {
+      const { data } = await db
+        .from("backup_contacts")
+        .select("id, name, phone")
+        .eq("org_id", orgRow.id)
+        .order("created_at");
+      contacts = data ?? [];
+    }
+  }
+
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">Brand voice</h1>
@@ -81,6 +99,24 @@ export default async function SettingsPage() {
         {!ctx.isDemo && (
           <div className="mt-4">
             <ConnectedAccounts accounts={accounts} webhookBase={webhookBase} />
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-900">
+          Backup contacts
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Shown beside the inbox so anyone on the team knows who to call if
+          the AI is ever unavailable.
+          {ctx.isDemo && (
+            <span className="text-amber-600"> Sign in to manage contacts.</span>
+          )}
+        </p>
+        {!ctx.isDemo && (
+          <div className="mt-4">
+            <BackupContacts contacts={contacts} />
           </div>
         )}
       </div>
