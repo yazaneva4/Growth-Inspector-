@@ -89,7 +89,7 @@ export async function runGrowthAgent(
       parts: [
         {
           text: [
-            `You are the Growth Agent for "${ctx.orgName}", a Saudi business using Growth Inspector.`,
+            `You are Growth in Brilliance for "${ctx.orgName}", a Saudi business using Growth Inspector.`,
             "Use the available tools to gather whatever real data you need, then give a concrete,",
             "actionable answer to the user's goal. Cite the actual numbers you found. Keep it tight.",
             "Culturally aware for the Saudi market (Fri/Sat weekend, Arabic dialect, local occasions).",

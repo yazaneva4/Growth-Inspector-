@@ -11,7 +11,7 @@ const nav = [
   { href: "/dashboard", label: "Overview", icon: "◻" },
   { href: "/dashboard/analytics", label: "Inspector report", icon: "📈" },
   { href: "/dashboard/trends", label: "Trend radar", icon: "📡" },
-  { href: "/dashboard/agent", label: "Growth Agent", icon: "🤖" },
+  { href: "/dashboard/agent", label: "Growth in Brilliance", icon: "🤖" },
   { href: "/dashboard/competitors", label: "Competitors", icon: "🎯" },
   { href: "/dashboard/inbox", label: "Inbox", icon: "💬" },
   { href: "/dashboard/escalations", label: "Escalations", icon: "⚠" },
