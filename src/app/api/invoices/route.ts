@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     emailError = err instanceof Error ? err.message : "email failed";
+    console.error(`Invoice email failed for ${customerEmail}:`, err);
   }
 
   const { data: invoice, error } = await supabase

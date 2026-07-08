@@ -57,7 +57,9 @@ export function InvoiceForm() {
       setMsg(
         data.delivered
           ? `Invoice ${data.invoice.number} emailed to ${customerEmail} ✓`
-          : `Invoice ${data.invoice.number} saved as draft (add RESEND_API_KEY to actually email it).`,
+          : `Invoice ${data.invoice.number} saved as draft — email failed to send${
+              data.emailError ? `: ${data.emailError}` : ""
+            }.`,
       );
       setCustomerName("");
       setCustomerEmail("");
