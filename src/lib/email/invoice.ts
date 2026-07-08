@@ -17,9 +17,6 @@ export interface InvoiceData {
   total: number;
   currency: string;
   date: string;
-  /** Real hosted payment link (Moyasar), when configured. Omit to show no
-   *  payment button — never a fake/placeholder "pay" link. */
-  paymentUrl?: string;
 }
 
 const fmt = (n: number) =>
@@ -107,16 +104,6 @@ export function buildInvoiceHtml(inv: InvoiceData): string {
           <td style="text-align:right;font-weight:bold;font-size:16px;color:#f97316;padding:10px 0;">${fmt(inv.total)} ${esc(inv.currency)}</td>
         </tr>
       </table>
-
-      ${
-        inv.paymentUrl
-          ? `<div style="text-align:center;margin-top:28px;">
-        <a href="${esc(inv.paymentUrl)}" style="display:inline-block;background:#f97316;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;padding:14px 32px;border-radius:10px;">
-          Pay ${fmt(inv.total)} ${esc(inv.currency)} now
-        </a>
-      </div>`
-          : ""
-      }
     </div>
 
     <div style="background:#f8fafc;padding:18px 32px;font-size:12px;color:#64748b;text-align:center;">
@@ -146,7 +133,6 @@ function buildInvoiceText(inv: InvoiceData): string {
     `VAT 15%: ${fmt(inv.vat)} ${inv.currency}`,
     `Total due: ${fmt(inv.total)} ${inv.currency}`,
     "",
-    ...(inv.paymentUrl ? [`Pay now: ${inv.paymentUrl}`, ""] : []),
     "Sent with Growth Inspector - thank you for your business",
   ].join("\n");
 }

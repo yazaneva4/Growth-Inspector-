@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { X_CONFIGURED } from "@/lib/platforms/x";
 import { emailTransport } from "@/lib/email/send";
 import { geminiConfigured } from "@/lib/ai/gemini";
-import { moyasarConfigured } from "@/lib/payments/moyasar";
 
 /**
  * Integration health check. Reports which API keys are configured WITHOUT
@@ -28,7 +27,6 @@ export async function GET() {
         has(process.env.TWILIO_ACCOUNT_SID) &&
         has(process.env.TWILIO_AUTH_TOKEN), // true = calls use Whisper instead of Twilio's built-in ASR
       x_posting: X_CONFIGURED, // agent can publish to X via /api/social/post
-      moyasar: moyasarConfigured(), // real "Pay now" link on emailed invoices
     },
     note: "Booleans only — no secret values are exposed.",
   });

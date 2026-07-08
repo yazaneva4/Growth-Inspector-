@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendInvoiceEmail, type InvoiceItem } from "@/lib/email/invoice";
-import { createMoyasarInvoice, moyasarConfigured } from "@/lib/payments/moyasar";
 
 const VAT_RATE = 0.15; // Saudi VAT
 
@@ -58,24 +57,6 @@ export async function POST(req: NextRequest) {
   const vat = Math.round(subtotal * VAT_RATE * 100) / 100;
   const total = Math.round((subtotal + vat) * 100) / 100;
 
-  // Real hosted payment link (Moyasar) when configured — never a fake one.
-  let paymentUrl: string | undefined;
-  let moyasarId: string | undefined;
-  if (moyasarConfigured()) {
-    try {
-      const moyasarInvoice = await createMoyasarInvoice({
-        amountMinor: Math.round(total * 100),
-        currency: "SAR",
-        description: `Invoice ${number} — ${orgName}`,
-        invoiceNumber: number,
-      });
-      paymentUrl = moyasarInvoice.url;
-      moyasarId = moyasarInvoice.id;
-    } catch (err) {
-      console.error("Moyasar invoice creation failed:", err);
-    }
-  }
-
   let delivered = false;
   let emailError: string | null = null;
   try {
@@ -90,7 +71,6 @@ export async function POST(req: NextRequest) {
       total,
       currency: "SAR",
       date: new Date().toISOString().slice(0, 10),
-      paymentUrl,
     });
   } catch (err) {
     emailError = err instanceof Error ? err.message : "email failed";
@@ -110,8 +90,6 @@ export async function POST(req: NextRequest) {
       currency: "SAR",
       status: delivered ? "sent" : "draft",
       sent_at: delivered ? new Date().toISOString() : null,
-      payment_url: paymentUrl,
-      moyasar_id: moyasarId,
     })
     .select("*")
     .single();

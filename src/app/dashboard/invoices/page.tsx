@@ -30,12 +30,11 @@ export default async function InvoicesPage() {
     currency: string;
     status: string;
     created_at: string;
-    payment_url: string | null;
   }> = [];
   if (org) {
     const { data } = await db
       .from("invoices")
-      .select("id, number, customer_name, customer_email, total, currency, status, created_at, payment_url")
+      .select("id, number, customer_name, customer_email, total, currency, status, created_at")
       .eq("org_id", org.id)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -85,16 +84,6 @@ export default async function InvoicesPage() {
                 <span className="font-semibold text-emerald-400">
                   {Number(inv.total).toLocaleString("en-US", { minimumFractionDigits: 2 })} {inv.currency}
                 </span>
-                {inv.payment_url && inv.status !== "paid" && (
-                  <a
-                    href={inv.payment_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg border border-sky-500/40 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-500/10"
-                  >
-                    Payment link ↗
-                  </a>
-                )}
                 {!ctx.isDemo && inv.status !== "paid" && <MarkPaidButton id={inv.id} />}
               </div>
             </div>
