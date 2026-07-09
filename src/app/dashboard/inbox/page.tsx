@@ -40,7 +40,9 @@ export default async function InboxPage({
     .eq("slug", ctx.orgSlug)
     .maybeSingle();
 
-  let conversations: Array<{
+  const CONV_COLUMNS =
+    "id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency, assigned_to";
+  type ConversationRow = {
     id: string;
     customer_name: string | null;
     customer_handle: string;
@@ -52,34 +54,31 @@ export default async function InboxPage({
     title: string | null;
     urgency: string | null;
     assigned_to: string | null;
-  }> = [];
-  if (org) {
-    const { data } = await db
-      .from("conversations")
-      .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency, assigned_to")
-      .eq("org_id", org.id)
-      .order("last_message_at", { ascending: false })
-      .limit(50);
-    conversations = data ?? [];
-  }
+  };
 
-  let teammates: { user_id: string; email: string }[] = [];
-  if (!ctx.isDemo) {
-    const { data } = await db.rpc("org_teammates");
-    teammates = ((data ?? []) as { user_id: string; email: string; role: string }[]).map(
-      (t) => ({ user_id: t.user_id, email: t.email }),
-    );
-  }
+  // Independent of each other — fetch in parallel instead of one-by-one.
+  const [conversationsRes, teammatesRes, contactsRes] = await Promise.all([
+    org
+      ? db
+          .from("conversations")
+          .select(CONV_COLUMNS)
+          .eq("org_id", org.id)
+          .order("last_message_at", { ascending: false })
+          .limit(50)
+      : Promise.resolve({ data: [] as ConversationRow[] }),
+    ctx.isDemo
+      ? Promise.resolve({ data: [] as { user_id: string; email: string; role: string }[] })
+      : db.rpc("org_teammates"),
+    org
+      ? db.from("backup_contacts").select("id, name, phone").eq("org_id", org.id).order("created_at")
+      : Promise.resolve({ data: [] as { id: string; name: string; phone: string }[] }),
+  ]);
 
-  let contacts: Array<{ id: string; name: string; phone: string }> = [];
-  if (org) {
-    const { data } = await db
-      .from("backup_contacts")
-      .select("id, name, phone")
-      .eq("org_id", org.id)
-      .order("created_at");
-    contacts = data ?? [];
-  }
+  const conversations: ConversationRow[] = conversationsRes.data ?? [];
+  const teammates = ((teammatesRes.data ?? []) as { user_id: string; email: string; role: string }[]).map(
+    (t) => ({ user_id: t.user_id, email: t.email }),
+  );
+  const contacts: Array<{ id: string; name: string; phone: string }> = contactsRes.data ?? [];
 
   const selectedId = sp.c;
   const showTester = sp.test === "1" || (!selectedId && conversations.length === 0);
@@ -94,19 +93,19 @@ export default async function InboxPage({
   }> = [];
   let selected = conversations.find((c) => c.id === selectedId) ?? null;
   if (selectedId && org) {
-    const { data } = await db
-      .from("messages")
-      .select("id, author, direction, body, ai_confidence, created_at")
-      .eq("conversation_id", selectedId)
-      .order("created_at", { ascending: true });
-    messages = data ?? [];
+    const [messagesRes, selectedRes] = await Promise.all([
+      db
+        .from("messages")
+        .select("id, author, direction, body, ai_confidence, created_at")
+        .eq("conversation_id", selectedId)
+        .order("created_at", { ascending: true }),
+      selected
+        ? Promise.resolve({ data: null })
+        : db.from("conversations").select(CONV_COLUMNS).eq("id", selectedId).maybeSingle(),
+    ]);
+    messages = messagesRes.data ?? [];
     if (!selected) {
-      const { data: c } = await db
-        .from("conversations")
-        .select("id, customer_name, customer_handle, platform, intent, status, lead_score, last_message_at, title, urgency, assigned_to")
-        .eq("id", selectedId)
-        .maybeSingle();
-      selected = c ?? null;
+      selected = (selectedRes.data as ConversationRow | null) ?? null;
     }
   }
 

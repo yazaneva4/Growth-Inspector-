@@ -15,7 +15,7 @@ export default async function SettingsPage() {
 
   const { data: org } = await db
     .from("organizations")
-    .select("brand_voice, reply_mode, confidence_threshold")
+    .select("id, brand_voice, reply_mode, confidence_threshold")
     .eq("slug", ctx.orgSlug)
     .maybeSingle();
 
@@ -25,49 +25,33 @@ export default async function SettingsPage() {
     confidence_threshold: Number(org?.confidence_threshold ?? 0.75),
   };
 
-  let accounts: Array<{
+  const host = (await headers()).get("host");
+  const webhookBase = `https://${host}/api/webhooks`;
+
+  // Independent of each other — fetch in parallel instead of one-by-one,
+  // and reuse the org row already fetched above instead of re-querying it.
+  const [accountsRes, contactsRes] =
+    !ctx.isDemo && org
+      ? await Promise.all([
+          db
+            .from("connected_accounts")
+            .select("id, platform, external_id, display_name, is_active")
+            .eq("org_id", org.id)
+            .eq("is_active", true)
+            .in("platform", ["whatsapp", "instagram", "x", "snapchat", "tiktok"])
+            .order("platform"),
+          db.from("backup_contacts").select("id, name, phone").eq("org_id", org.id).order("created_at"),
+        ])
+      : [{ data: [] }, { data: [] }];
+
+  const accounts = (accountsRes.data ?? []) as Array<{
     id: string;
     platform: string;
     external_id: string;
     display_name: string;
     is_active: boolean;
-  }> = [];
-  if (!ctx.isDemo) {
-    const { data: orgRow } = await db
-      .from("organizations")
-      .select("id")
-      .eq("slug", ctx.orgSlug)
-      .maybeSingle();
-    if (orgRow) {
-      const { data } = await db
-        .from("connected_accounts")
-        .select("id, platform, external_id, display_name, is_active")
-        .eq("org_id", orgRow.id)
-        .eq("is_active", true)
-        .in("platform", ["whatsapp", "instagram", "x", "snapchat", "tiktok"])
-        .order("platform");
-      accounts = data ?? [];
-    }
-  }
-  const host = (await headers()).get("host");
-  const webhookBase = `https://${host}/api/webhooks`;
-
-  let contacts: Array<{ id: string; name: string; phone: string }> = [];
-  if (!ctx.isDemo) {
-    const { data: orgRow } = await db
-      .from("organizations")
-      .select("id")
-      .eq("slug", ctx.orgSlug)
-      .maybeSingle();
-    if (orgRow) {
-      const { data } = await db
-        .from("backup_contacts")
-        .select("id, name, phone")
-        .eq("org_id", orgRow.id)
-        .order("created_at");
-      contacts = data ?? [];
-    }
-  }
+  }>;
+  const contacts = (contactsRes.data ?? []) as Array<{ id: string; name: string; phone: string }>;
 
   return (
     <div className="max-w-2xl">

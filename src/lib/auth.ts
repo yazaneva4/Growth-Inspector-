@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export interface CurrentContext {
@@ -19,8 +20,13 @@ export interface CurrentContext {
  * Resolve who is viewing the dashboard. If signed in, ensure they have an
  * organization (creating one on first login via the secure RPC) and return its
  * slug. Otherwise fall back to the public demo workspace.
+ *
+ * Wrapped in React's cache() so the layout and every page can each call this
+ * freely without re-running the auth/org lookup (3+ sequential network
+ * round-trips) on every single one — React dedupes concurrent/repeated
+ * calls within the same request to a single execution.
  */
-export async function getCurrentContext(): Promise<CurrentContext> {
+export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -70,4 +76,4 @@ export async function getCurrentContext(): Promise<CurrentContext> {
     isDemo: !slug,
     onboarded,
   };
-}
+});
