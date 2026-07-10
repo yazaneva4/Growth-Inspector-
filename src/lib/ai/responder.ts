@@ -1,5 +1,6 @@
 import { anthropic, MODELS } from "./anthropic";
 import { gemini, geminiConfigured, GEMINI_MODEL } from "./gemini";
+import { openrouterChatJSON, openrouterConfigured } from "./openrouter";
 import { withRetry } from "./retry";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
 
@@ -355,6 +356,38 @@ export async function respondWithGemini(
   return finalizeCombinedResult(parsed, opts);
 }
 
+/**
+ * OpenRouter-backed pipeline (optional last-resort provider). Unlike Gemini,
+ * OpenRouter models don't take a schema object, so the required JSON shape is
+ * spelled out in the prompt and parsed defensively.
+ */
+export async function respondWithOpenRouter(
+  message: string,
+  opts: ResponderOpts,
+): Promise<ResponderResult> {
+  const { system, user } = buildCombinedPrompt(message, opts);
+  const jsonSpec = [
+    "",
+    'Respond with ONLY a JSON object, no prose, with exactly these keys:',
+    '{"intent": "price_inquiry|complaint|hot_lead|spam|support|other",',
+    ' "sentiment": "positive|neutral|negative",',
+    ' "language": "ar|ar-dialect|arabizi|en|mixed",',
+    ' "lead_score": 0-100 integer,',
+    ' "hard_block": true|false,',
+    ' "hard_block_reason": string (empty if none),',
+    ' "reply": string (the customer-facing reply, empty if hard_block or spam),',
+    ' "confidence": 0-1 number}',
+  ].join("\n");
+
+  const parsed = await withRetry(() =>
+    openrouterChatJSON<MessageAnalysis & { reply: string; confidence: number }>({
+      system: system + jsonSpec,
+      user,
+    }),
+  );
+  return finalizeCombinedResult(parsed, opts);
+}
+
 /** Thrown when no AI provider could produce a real reply. Callers should
  *  show a friendly "AI is temporarily unavailable" message — never fall
  *  back to canned/demo text as if it were a real reply. */
@@ -366,10 +399,10 @@ export class AIUnavailableError extends Error {
 }
 
 /**
- * Provider-selecting entry point: tries Claude first (best quality), falls
- * back to Gemini if Claude isn't configured or errors (each already retries
- * transient failures internally). Throws AIUnavailableError if neither
- * provider is configured or both fail — never silently returns a demo reply.
+ * Provider-selecting entry point: tries Claude first (best quality), then
+ * Gemini, then OpenRouter as a last resort — each already retries transient
+ * failures internally. Throws AIUnavailableError if no provider is configured
+ * or all fail — never silently returns a demo reply.
  */
 export async function respondBestAvailable(
   message: string,
@@ -394,7 +427,15 @@ export async function respondBestAvailable(
     try {
       return await respondWithGemini(message, opts);
     } catch (err) {
-      console.error("Gemini responder failed:", err);
+      console.error("Gemini responder failed, falling back:", err);
+      lastErr = err;
+    }
+  }
+  if (openrouterConfigured()) {
+    try {
+      return await respondWithOpenRouter(message, opts);
+    } catch (err) {
+      console.error("OpenRouter responder failed:", err);
       lastErr = err;
     }
   }
