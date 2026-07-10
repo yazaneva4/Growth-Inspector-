@@ -7,7 +7,7 @@
  *  only point OPENROUTER_MODEL at a zero-data-retention or paid endpoint if
  *  real customer messages must stay private. */
 export const OPENROUTER_MODEL =
-  process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free";
+  process.env.OPENROUTER_MODEL?.trim() || "google/gemma-4-31b-it:free";
 
 export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
