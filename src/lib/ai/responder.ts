@@ -1,6 +1,12 @@
 import { anthropic, MODELS } from "./anthropic";
 import { gemini, geminiConfigured, GEMINI_MODEL } from "./gemini";
-import { openrouterChatJSON, openrouterConfigured } from "./openrouter";
+import {
+  openrouterChatJSON,
+  openrouterConfigured,
+  OPENROUTER_MODEL_A,
+  OPENROUTER_MODEL_B,
+  OPENROUTER_MODEL_C,
+} from "./openrouter";
 import { withRetry } from "./retry";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
 
@@ -357,13 +363,15 @@ export async function respondWithGemini(
 }
 
 /**
- * OpenRouter-backed pipeline (optional last-resort provider). Unlike Gemini,
- * OpenRouter models don't take a schema object, so the required JSON shape is
- * spelled out in the prompt and parsed defensively.
+ * OpenRouter-backed pipeline — takes the target model per call, since
+ * OpenRouter fills three separate tiers in the fallback chain. Unlike
+ * Gemini, OpenRouter models don't take a schema object, so the required
+ * JSON shape is spelled out in the prompt and parsed defensively.
  */
 export async function respondWithOpenRouter(
   message: string,
   opts: ResponderOpts,
+  model: string,
 ): Promise<ResponderResult> {
   const { system, user } = buildCombinedPrompt(message, opts);
   const jsonSpec = [
@@ -381,6 +389,7 @@ export async function respondWithOpenRouter(
 
   const parsed = await withRetry(() =>
     openrouterChatJSON<MessageAnalysis & { reply: string; confidence: number }>({
+      model,
       system: system + jsonSpec,
       user,
     }),
@@ -399,10 +408,15 @@ export class AIUnavailableError extends Error {
 }
 
 /**
- * Provider-selecting entry point: tries Claude first (best quality), then
- * Gemini, then OpenRouter as a last resort — each already retries transient
- * failures internally. Throws AIUnavailableError if no provider is configured
- * or all fail — never silently returns a demo reply.
+ * Provider-selecting entry point — five-tier fallback chain, each step
+ * retrying transient failures internally before moving to the next:
+ *   1. Claude              (best quality)
+ *   2. OpenRouter Tier A    (openai/gpt-oss-120b:free by default)
+ *   3. Gemini
+ *   4. OpenRouter Tier B    (google/gemma-4-31b-it:free by default)
+ *   5. OpenRouter Tier C    (tencent/hy3:free by default — final catch-all)
+ * Throws AIUnavailableError if no provider is configured or all fail —
+ * never silently returns a demo reply.
  */
 export async function respondBestAvailable(
   message: string,
@@ -423,6 +437,14 @@ export async function respondBestAvailable(
       lastErr = err;
     }
   }
+  if (openrouterConfigured()) {
+    try {
+      return await respondWithOpenRouter(message, opts, OPENROUTER_MODEL_A);
+    } catch (err) {
+      console.error(`OpenRouter (${OPENROUTER_MODEL_A}) failed, falling back:`, err);
+      lastErr = err;
+    }
+  }
   if (geminiConfigured()) {
     try {
       return await respondWithGemini(message, opts);
@@ -433,9 +455,15 @@ export async function respondBestAvailable(
   }
   if (openrouterConfigured()) {
     try {
-      return await respondWithOpenRouter(message, opts);
+      return await respondWithOpenRouter(message, opts, OPENROUTER_MODEL_B);
     } catch (err) {
-      console.error("OpenRouter responder failed:", err);
+      console.error(`OpenRouter (${OPENROUTER_MODEL_B}) failed, falling back:`, err);
+      lastErr = err;
+    }
+    try {
+      return await respondWithOpenRouter(message, opts, OPENROUTER_MODEL_C);
+    } catch (err) {
+      console.error(`OpenRouter (${OPENROUTER_MODEL_C}) failed:`, err);
       lastErr = err;
     }
   }

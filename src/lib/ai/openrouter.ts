@@ -1,13 +1,23 @@
-/** OpenRouter — optional last-resort responder provider, used only if both
- *  Claude and Gemini fail. OpenAI-compatible API. The model is configurable
- *  via OPENROUTER_MODEL so you can paste the exact slug from openrouter.ai
- *  (e.g. "google/gemma-4-31b-it:free"). Requires OPENROUTER_API_KEY.
+/** OpenRouter — optional responder fallback tiers, slotted between/after
+ *  Claude and Gemini. OpenAI-compatible API. Each tier's model slug is
+ *  configurable via its own env var so the exact string can be pasted from
+ *  openrouter.ai. Requires OPENROUTER_API_KEY (shared across all tiers).
  *
  *  NOTE: free ("...:free") endpoints may log prompts/outputs for training —
- *  only point OPENROUTER_MODEL at a zero-data-retention or paid endpoint if
- *  real customer messages must stay private. */
-export const OPENROUTER_MODEL =
-  process.env.OPENROUTER_MODEL?.trim() || "google/gemma-4-31b-it:free";
+ *  only use one for real customer data if it's explicitly zero-data-retention. */
+
+/** Tier A — tried right after Claude fails, before Gemini. */
+export const OPENROUTER_MODEL_A =
+  process.env.OPENROUTER_MODEL_A?.trim() || "openai/gpt-oss-120b:free";
+
+/** Tier B — tried right after Gemini fails. */
+export const OPENROUTER_MODEL_B =
+  process.env.OPENROUTER_MODEL_B?.trim() || "google/gemma-4-31b-it:free";
+
+/** Tier C — final fallback, tried after everything else fails.
+ *  Going away on OpenRouter July 21, 2026 — swap this before then. */
+export const OPENROUTER_MODEL_C =
+  process.env.OPENROUTER_MODEL_C?.trim() || "tencent/hy3:free";
 
 export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
@@ -17,6 +27,7 @@ export function openrouterConfigured(): boolean {
  *  across models that don't support strict json_schema) and parses the
  *  first JSON block from the response defensively. */
 export async function openrouterChatJSON<T>(opts: {
+  model: string;
   system: string;
   user: string;
 }): Promise<T> {
@@ -29,7 +40,7 @@ export async function openrouterChatJSON<T>(opts: {
       "X-Title": "GrowthSpace",
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: opts.model,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.user },
@@ -39,11 +50,11 @@ export async function openrouterChatJSON<T>(opts: {
   });
 
   if (!res.ok) {
-    throw new Error(`OpenRouter request failed: ${res.status} ${await res.text()}`);
+    throw new Error(`OpenRouter (${opts.model}) request failed: ${res.status} ${await res.text()}`);
   }
   const data = await res.json();
   const content: string | undefined = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("OpenRouter returned no content");
+  if (!content) throw new Error(`OpenRouter (${opts.model}) returned no content`);
 
   // Some models wrap JSON in prose or ```json fences — extract the object.
   const match = content.match(/\{[\s\S]*\}/);
