@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ResponderResult } from "@/lib/ai/responder";
+import { MicButton } from "@/components/mic-button";
 
 type Turn =
   | { who: "customer"; body: string }
@@ -30,6 +31,15 @@ export function InboxSimulator() {
   const [persist, setPersist] = useState(true);
   const [channel, setChannel] = useState<"sandbox" | "email">("sandbox");
   const [loading, setLoading] = useState(false);
+  const [speakReplies, setSpeakReplies] = useState(false);
+
+  function speak(text: string, lang?: string) {
+    if (!speakReplies || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang === "en" ? "en-US" : "ar-SA";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  }
 
   const [handle] = useState(
     () => "demo_" + Math.random().toString(36).slice(2, 8),
@@ -83,6 +93,7 @@ export function InboxSimulator() {
         ]);
       } else {
         setTurns((t) => [...t, { who: "ai", body: result.reply, result }]);
+        speak(result.reply, result.analysis.language === "en" ? "en" : "ar");
       }
       if (persist) router.refresh();
     } catch {
@@ -97,6 +108,15 @@ export function InboxSimulator() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Test the responder</h2>
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={speakReplies}
+              onChange={(e) => setSpeakReplies(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            🔊 Speak replies
+          </label>
           <label className="flex items-center gap-1.5 text-xs text-slate-600">
             <input
               type="checkbox"
@@ -213,6 +233,7 @@ export function InboxSimulator() {
           placeholder="Write a customer message…"
           className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-emerald-500"
         />
+        <MicButton disabled={loading} onTranscript={(text) => send(text)} />
         <button
           type="submit"
           disabled={loading}

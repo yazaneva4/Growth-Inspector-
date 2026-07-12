@@ -278,6 +278,27 @@ const WHISPER_ENABLED = Boolean(
     process.env.TWILIO_AUTH_TOKEN,
 );
 
+/** Transcribes an audio file (any source) with OpenAI Whisper. Shared by the
+ *  Twilio call pipeline and the in-dashboard browser voice chat. */
+export async function transcribeAudio(audio: Blob, filename = "audio.webm"): Promise<string> {
+  const form = new FormData();
+  form.append("file", audio, filename);
+  form.append("model", "whisper-1");
+  // No `language` param — let Whisper auto-detect Arabic/English/code-switched
+  // speech rather than biasing toward one.
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`Whisper transcription failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { text?: string };
+  return data.text ?? "";
+}
+
 /** Downloads a Twilio call recording and transcribes it with Whisper. */
 export async function transcribeWithWhisper(recordingUrl: string): Promise<string> {
   const sid = process.env.TWILIO_ACCOUNT_SID!;
@@ -291,23 +312,7 @@ export async function transcribeWithWhisper(recordingUrl: string): Promise<strin
     throw new Error(`Failed to fetch Twilio recording: ${audioRes.status}`);
   }
   const audioBlob = await audioRes.blob();
-
-  const form = new FormData();
-  form.append("file", audioBlob, "recording.mp3");
-  form.append("model", "whisper-1");
-  // No `language` param — let Whisper auto-detect Arabic/English/code-switched
-  // callers rather than biasing toward one.
-
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-    body: form,
-  });
-  if (!res.ok) {
-    throw new Error(`Whisper transcription failed: ${res.status}`);
-  }
-  const data = (await res.json()) as { text?: string };
-  return data.text ?? "";
+  return transcribeAudio(audioBlob, "recording.mp3");
 }
 
 /** Builds the TwiML response: speak each line, then listen or hang up. */

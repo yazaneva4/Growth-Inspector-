@@ -35,6 +35,7 @@ export async function GET() {
         has(process.env.OPENAI_API_KEY) &&
         has(process.env.TWILIO_ACCOUNT_SID) &&
         has(process.env.TWILIO_AUTH_TOKEN), // true = calls use Whisper instead of Twilio's built-in ASR
+      voice_chat: has(process.env.OPENAI_API_KEY), // in-dashboard mic-to-AI voice chat (Test the AI)
       x_posting: X_CONFIGURED, // agent can publish to X via /api/social/post
     },
     note: "Booleans only — no secret values are exposed.",
