@@ -19,15 +19,37 @@ function initialMode(): Mode {
 }
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true";
+const REMEMBER_KEY = "gi_remember_me";
+const REMEMBERED_EMAIL_KEY = "gi_remembered_email";
+
+function rememberedEmail(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(REMEMBER_KEY) === "1"
+    ? (localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? "")
+    : "";
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(rememberedEmail);
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem(REMEMBER_KEY) === "1",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  function persistRememberedEmail() {
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_KEY, "1");
+      localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+      localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    }
+  }
 
   async function signInWithGoogle() {
     setError(null);
@@ -76,6 +98,7 @@ export default function LoginPage() {
         if (error) throw error;
         if (signupData.session) {
           // Email confirmation is off in Supabase → straight into the app.
+          persistRememberedEmail();
           router.push("/dashboard/inbox");
           router.refresh();
         } else {
@@ -96,6 +119,7 @@ export default function LoginPage() {
           ({ error } = await supabase.auth.signInWithPassword({ email, password }));
         }
         if (error) throw error;
+        persistRememberedEmail();
         router.push("/dashboard/inbox");
         router.refresh();
       }
@@ -194,6 +218,15 @@ export default function LoginPage() {
             placeholder="Password (min 6 chars)"
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
           />
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-emerald-500"
+            />
+            Remember me
+          </label>
           <button
             type="submit"
             disabled={busy}
