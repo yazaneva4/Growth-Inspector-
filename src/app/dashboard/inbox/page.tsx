@@ -134,7 +134,7 @@ export default async function InboxPage({
         }`}
       >
         {/* Conversation list */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-2">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-2">
           {conversations.length === 0 ? (
             <p className="p-6 text-center text-sm text-slate-500">
               No conversations yet. Use “Test the AI” to create some.
@@ -213,7 +213,7 @@ export default async function InboxPage({
         </div>
 
         {/* Right pane: tester, thread, or empty */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5">
           {showTester ? (
             <InboxSimulator />
           ) : selected ? (
@@ -278,7 +278,7 @@ export default async function InboxPage({
 
         {/* Backup contacts — who to call if the AI is ever unavailable */}
         {contacts.length > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Need help? Call
             </h2>

@@ -26,10 +26,13 @@ export default function Home() {
     <main className="min-h-screen bg-white text-slate-950">
       {/* Header */}
       <header className="border-b border-slate-200">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
           <Logo variant="light" />
-          <nav className="flex items-center gap-6 text-sm font-medium">
-            <Link href="/careers" className="text-slate-700 hover:text-slate-950">
+          <nav className="flex items-center gap-3 text-sm font-medium sm:gap-6">
+            <Link
+              href="/careers"
+              className="hidden text-slate-700 hover:text-slate-950 sm:inline"
+            >
               Careers
             </Link>
             <Link href="/login" className="text-slate-700 hover:text-slate-950">
@@ -37,7 +40,7 @@ export default function Home() {
             </Link>
             <Link
               href="/dashboard"
-              className="rounded-lg bg-emerald-500 px-5 py-2 text-white hover:bg-emerald-600"
+              className="rounded-lg bg-emerald-500 px-3 py-2 text-white hover:bg-emerald-600 sm:px-5"
             >
               Dashboard
             </Link>
