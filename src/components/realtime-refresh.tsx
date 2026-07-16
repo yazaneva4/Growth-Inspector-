@@ -15,6 +15,8 @@ const LIVE_TABLES = [
   "connected_accounts",
   "team_invites",
   "job_applications",
+  "clients",
+  "team_messages",
 ];
 
 export function RealtimeRefresh() {

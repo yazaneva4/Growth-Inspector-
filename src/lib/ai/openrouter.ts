@@ -55,3 +55,35 @@ export async function openrouterChatJSON<T>(opts: {
   const match = content.match(/\{[\s\S]*\}/);
   return JSON.parse(match ? match[0] : content) as T;
 }
+
+/** Plain-text chat completion — for free-form copy (e.g. a welcome message)
+ *  where no JSON structure is needed. */
+export async function openrouterChatText(opts: {
+  model: string;
+  system: string;
+  user: string;
+}): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://growth-space.net",
+      "X-Title": "GrowthSpace",
+    },
+    body: JSON.stringify({
+      model: opts.model,
+      messages: [
+        { role: "system", content: opts.system },
+        { role: "user", content: opts.user },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`OpenRouter (${opts.model}) request failed: ${res.status} ${await res.text()}`);
+  }
+  const data = await res.json();
+  const content: string | undefined = data.choices?.[0]?.message?.content;
+  if (!content?.trim()) throw new Error(`OpenRouter (${opts.model}) returned no content`);
+  return content.trim();
+}
