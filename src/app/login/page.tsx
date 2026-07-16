@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -37,6 +37,13 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(
     () => typeof window !== "undefined" && localStorage.getItem(REMEMBER_KEY) === "1",
   );
+  const rememberCheckboxRef = useRef<HTMLInputElement>(null);
+  // React's controlled-checkbox hydration doesn't always sync the DOM
+  // .checked property to the initial state on mount — force it once so a
+  // remembered "checked" box doesn't render as visually unchecked.
+  useEffect(() => {
+    if (rememberCheckboxRef.current) rememberCheckboxRef.current.checked = rememberMe;
+  }, [rememberMe]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -220,6 +227,7 @@ export default function LoginPage() {
           />
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input
+              ref={rememberCheckboxRef}
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
