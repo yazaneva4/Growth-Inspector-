@@ -6,7 +6,6 @@ import {
   openrouterConfigured,
   OPENROUTER_MODEL_A,
   OPENROUTER_MODEL_B,
-  OPENROUTER_MODEL_C,
 } from "@/lib/ai/openrouter";
 
 /**
@@ -24,8 +23,8 @@ export async function GET() {
       anthropic: has(process.env.ANTHROPIC_API_KEY), // AI responder + weekly report (primary provider)
       gemini: geminiConfigured(), // responder fallback + Growth Agent
       openrouter: openrouterConfigured()
-        ? { tier_a: OPENROUTER_MODEL_A, tier_b: OPENROUTER_MODEL_B, tier_c: OPENROUTER_MODEL_C }
-        : false, // responder fallback tiers (after Claude, after Gemini, and final catch-all)
+        ? { tier_a: OPENROUTER_MODEL_A, tier_b: OPENROUTER_MODEL_B }
+        : false, // responder fallback tiers (after Claude, and after Gemini)
       email_transport: emailTransport(), // "gmail" | "none" — invoices, access emails, inbox replies
       meta_verify_token: has(process.env.META_VERIFY_TOKEN), // WhatsApp/IG webhooks
       meta_access_token: has(process.env.META_ACCESS_TOKEN), // real WhatsApp/Instagram DM sending

@@ -10,14 +10,9 @@
 export const OPENROUTER_MODEL_A =
   process.env.OPENROUTER_MODEL_A?.trim() || "openai/gpt-oss-120b:free";
 
-/** Tier B — tried right after Gemini fails. */
+/** Tier B — final fallback, tried right after Gemini fails. */
 export const OPENROUTER_MODEL_B =
   process.env.OPENROUTER_MODEL_B?.trim() || "google/gemma-4-31b-it:free";
-
-/** Tier C — final fallback, tried after everything else fails.
- *  Going away on OpenRouter July 21, 2026 — swap this before then. */
-export const OPENROUTER_MODEL_C =
-  process.env.OPENROUTER_MODEL_C?.trim() || "tencent/hy3:free";
 
 export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);

@@ -5,7 +5,6 @@ import {
   openrouterConfigured,
   OPENROUTER_MODEL_A,
   OPENROUTER_MODEL_B,
-  OPENROUTER_MODEL_C,
 } from "./openrouter";
 import { withRetry } from "./retry";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
@@ -408,13 +407,12 @@ export class AIUnavailableError extends Error {
 }
 
 /**
- * Provider-selecting entry point — five-tier fallback chain, each step
+ * Provider-selecting entry point — four-tier fallback chain, each step
  * retrying transient failures internally before moving to the next:
  *   1. Claude              (best quality)
  *   2. OpenRouter Tier A    (openai/gpt-oss-120b:free by default)
  *   3. Gemini
- *   4. OpenRouter Tier B    (google/gemma-4-31b-it:free by default)
- *   5. OpenRouter Tier C    (tencent/hy3:free by default — final catch-all)
+ *   4. OpenRouter Tier B    (google/gemma-4-31b-it:free by default — final catch-all)
  * Throws AIUnavailableError if no provider is configured or all fail —
  * never silently returns a demo reply.
  */
@@ -457,13 +455,7 @@ export async function respondBestAvailable(
     try {
       return await respondWithOpenRouter(message, opts, OPENROUTER_MODEL_B);
     } catch (err) {
-      console.error(`OpenRouter (${OPENROUTER_MODEL_B}) failed, falling back:`, err);
-      lastErr = err;
-    }
-    try {
-      return await respondWithOpenRouter(message, opts, OPENROUTER_MODEL_C);
-    } catch (err) {
-      console.error(`OpenRouter (${OPENROUTER_MODEL_C}) failed:`, err);
+      console.error(`OpenRouter (${OPENROUTER_MODEL_B}) failed:`, err);
       lastErr = err;
     }
   }
