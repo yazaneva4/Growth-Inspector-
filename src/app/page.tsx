@@ -51,12 +51,14 @@ export default function Home() {
       {/* Hero */}
       <section className="mx-auto max-w-4xl px-6 py-24 text-center">
         <h1 className="text-balance font-serif text-5xl font-semibold leading-tight text-slate-950 sm:text-6xl">
-          The AI that answers your customers — in their own dialect.
+          AI-powered customer conversations, built for businesses that never
+          sleep.
         </h1>
         <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-slate-600">
-          Growth Space autonomously replies to your social DMs and comments
-          in Arabic and English, around the clock, while acting as your
-          always-on growth analyst.
+          Growth Space autonomously manages customer DMs and comments in
+          Arabic and English, delivering instant, human-like responses while
+          continuously tracking customer sentiment, engagement, and growth
+          opportunities—all in one intelligent platform.
         </p>
         <div className="mt-10 flex justify-center gap-4">
           <Link
