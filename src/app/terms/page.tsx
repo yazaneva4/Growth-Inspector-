@@ -18,7 +18,7 @@ export default function TermsPage() {
       </header>
 
       <article className="mx-auto max-w-3xl px-6 py-16 text-sm leading-relaxed text-slate-700">
-        <h1 className="text-3xl font-bold text-slate-950">Terms of Service</h1>
+        <h1 className="font-serif text-3xl font-semibold text-slate-950">Terms of Service</h1>
         <p className="mt-2 text-slate-500">Last updated: July 2026</p>
 
         <p className="mt-8">

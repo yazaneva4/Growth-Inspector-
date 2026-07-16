@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Noto_Kufi_Arabic } from "next/font/google";
+import { Plus_Jakarta_Sans, Noto_Kufi_Arabic, Source_Serif_4 } from "next/font/google";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import "./globals.css";
 
@@ -14,6 +14,14 @@ const jakartaSans = Plus_Jakarta_Sans({
 const notoArabic = Noto_Kufi_Arabic({
   variable: "--font-arabic",
   subsets: ["arabic"],
+});
+
+// Editorial serif for headlines and formal documents — same register as the
+// serif Anthropic uses for its own long-form/editorial text.
+const sourceSerif = Source_Serif_4({
+  variable: "--font-serif-brand",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -58,7 +66,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jakartaSans.variable} ${notoArabic.variable} h-full antialiased`}
+      className={`${jakartaSans.variable} ${notoArabic.variable} ${sourceSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

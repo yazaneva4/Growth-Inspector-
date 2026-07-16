@@ -54,7 +54,7 @@ export default function CareersPage() {
         <Link href="/" className="text-lg font-bold">
           Growth<span className="text-emerald-400"> Inspector</span>
         </Link>
-        <h1 className="mt-8 text-4xl font-bold">Work in the Saudi growth space 🇸🇦</h1>
+        <h1 className="mt-8 font-serif text-4xl font-semibold">Work in the Saudi growth space 🇸🇦</h1>
         <p className="mt-3 text-slate-600">
           We&apos;re building the AI that powers customer engagement for Saudi
           brands. If you live and breathe social, Arabic content, or growth —

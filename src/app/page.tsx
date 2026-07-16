@@ -50,7 +50,7 @@ export default function Home() {
 
       {/* Hero */}
       <section className="mx-auto max-w-4xl px-6 py-24 text-center">
-        <h1 className="text-balance text-5xl font-bold leading-tight text-slate-950 sm:text-6xl">
+        <h1 className="text-balance font-serif text-5xl font-semibold leading-tight text-slate-950 sm:text-6xl">
           The AI that answers your customers — in their own dialect.
         </h1>
         <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-slate-600">
