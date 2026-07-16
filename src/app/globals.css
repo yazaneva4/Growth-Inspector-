@@ -30,8 +30,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Latin + Arabic-native fallback so Khaleeji/MSA text renders cleanly. */
-  font-family: var(--font-geist-sans), var(--font-arabic), system-ui, sans-serif;
+  /* Serif brand voice, with Arabic-native + sans fallback so Khaleeji/MSA
+   * text and any un-serifed glyphs still render cleanly. */
+  font-family: var(--font-serif-brand), var(--font-arabic), var(--font-geist-sans), serif;
 }
 
 /* Arabic glyphs use the Arabic typeface even inside mixed/auto-dir blocks. */
