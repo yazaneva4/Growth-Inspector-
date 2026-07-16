@@ -7,17 +7,61 @@ import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { Logo, LogoMark } from "@/components/logo";
 import { TopBar } from "@/components/top-bar";
 
-const nav = [
-  { href: "/dashboard", label: "Overview", icon: "◻" },
-  { href: "/dashboard/analytics", label: "Inspector report", icon: "📈" },
-  { href: "/dashboard/trends", label: "Trend radar", icon: "📡" },
-  { href: "/dashboard/agent", label: "Growth in Brilliance", icon: "🤖" },
-  { href: "/dashboard/competitors", label: "Competitors", icon: "🎯" },
-  { href: "/dashboard/inbox", label: "Inbox", icon: "💬" },
-  { href: "/dashboard/escalations", label: "Escalations", icon: "⚠" },
-  { href: "/dashboard/invoices", label: "Invoices", icon: "🧾" },
-  { href: "/dashboard/settings", label: "Brand voice", icon: "🎙" },
-  { href: "/dashboard/team", label: "Team", icon: "👥" },
+const navGroups = [
+  {
+    label: "MAIN",
+    items: [
+      { href: "/dashboard", label: "Overview", icon: "◻" },
+      { href: "/dashboard/leads", label: "Leads", icon: "🧲" },
+      { href: "/dashboard/pipeline", label: "Pipeline", icon: "🔀" },
+    ],
+  },
+  {
+    label: "GROWTH",
+    items: [
+      { href: "/dashboard/analytics", label: "Inspector report", icon: "📈" },
+      { href: "/dashboard/trends", label: "Trend radar", icon: "📡" },
+      { href: "/dashboard/agent", label: "Growth in Brilliance", icon: "🤖" },
+      { href: "/dashboard/competitors", label: "Competitors", icon: "🎯" },
+    ],
+  },
+  {
+    label: "INBOX",
+    items: [
+      { href: "/dashboard/inbox", label: "Inbox", icon: "💬" },
+      { href: "/dashboard/escalations", label: "Escalations", icon: "⚠" },
+      { href: "/dashboard/invoices", label: "Invoices", icon: "🧾" },
+    ],
+  },
+  {
+    label: "RECORDS",
+    items: [
+      { href: "/dashboard/quotes", label: "All Quotes", icon: "📄" },
+      { href: "/dashboard/jobs", label: "Active Jobs", icon: "🛠" },
+      { href: "/dashboard/archive", label: "Archive", icon: "🗄" },
+      { href: "/dashboard/trash", label: "Trash", icon: "🗑" },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { href: "/dashboard/clients", label: "Clients", icon: "🏢" },
+      { href: "/dashboard/products", label: "Products", icon: "📦" },
+      { href: "/dashboard/quote-types", label: "Quote Types", icon: "🏷" },
+      { href: "/dashboard/reports", label: "Reports", icon: "📊" },
+      { href: "/dashboard/retainers", label: "Retainers", icon: "🔁" },
+    ],
+  },
+  {
+    label: "ADMIN",
+    items: [
+      { href: "/dashboard/settings", label: "Brand voice", icon: "🎙" },
+      { href: "/dashboard/team", label: "Team", icon: "👥" },
+      { href: "/dashboard/my-tasks", label: "My Tasks", icon: "✅" },
+      { href: "/dashboard/messages", label: "Messages", icon: "✉" },
+      { href: "/dashboard/users", label: "Users", icon: "🧑‍💼" },
+    ],
+  },
 ];
 
 function AccountFooter({ email }: { email: string | null }) {
@@ -131,28 +175,41 @@ export function DashboardChrome({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-          {nav.map((n) => {
-            const active = pathname === n.href;
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                title={collapsed ? n.label : undefined}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                  collapsed ? "lg:justify-center lg:px-0" : ""
-                } ${
-                  active
-                    ? "bg-emerald-500/10 text-emerald-600 font-medium"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <div
+                className={`mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 ${
+                  collapsed ? "lg:hidden" : ""
                 }`}
               >
-                <span className="text-xs opacity-70">{n.icon}</span>
-                <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
-              </Link>
-            );
-          })}
+                {group.label}
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((n) => {
+                  const active = pathname === n.href;
+                  return (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      title={collapsed ? n.label : undefined}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                        collapsed ? "lg:justify-center lg:px-0" : ""
+                      } ${
+                        active
+                          ? "bg-emerald-500/10 text-emerald-600 font-medium"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      <span className="text-xs opacity-70">{n.icon}</span>
+                      <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className={`border-t border-slate-200 p-3 text-xs ${collapsed ? "lg:hidden" : ""}`}>
