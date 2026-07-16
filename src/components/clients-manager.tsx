@@ -22,6 +22,7 @@ function ClientRow({ client }: { client: Client }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sendState, setSendState] = useState<"idle" | "sending" | "sent">("idle");
 
   async function generate() {
     setError(null);
@@ -36,10 +37,30 @@ function ClientRow({ client }: { client: Client }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to generate");
       setMessage(data.message as string);
+      setSendState("idle");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function autoSend() {
+    if (!message) return;
+    setError(null);
+    setSendState("sending");
+    try {
+      const res = await fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: client.phone, body: message }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Auto-send failed");
+      setSendState("sent");
+    } catch (err) {
+      setSendState("idle");
+      setError(err instanceof Error ? err.message : "Auto-send failed");
     }
   }
 
@@ -94,11 +115,12 @@ function ClientRow({ client }: { client: Client }) {
       {message && (
         <div className="mt-2 rounded-lg bg-slate-50 p-3">
           <p className="whitespace-pre-wrap text-xs text-slate-700" dir="auto">{message}</p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <a
               href={whatsappLink(client.phone, message)}
               target="_blank"
               rel="noreferrer"
+              title="Opens WhatsApp with this message as a draft — you tap send"
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -106,6 +128,14 @@ function ClientRow({ client }: { client: Client }) {
               </svg>
               Send on WhatsApp
             </a>
+            <button
+              onClick={autoSend}
+              disabled={sendState !== "idle"}
+              title="Send automatically via the WhatsApp Business API — no manual tap"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-60"
+            >
+              {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Sent ✓" : "⚡ Auto-send"}
+            </button>
             <button
               onClick={generate}
               disabled={busy}
