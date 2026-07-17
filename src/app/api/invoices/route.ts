@@ -19,13 +19,24 @@ export async function POST(req: NextRequest) {
     }))
     .filter(
       (it: InvoiceItem) =>
-        it.description && Number.isFinite(it.qty) && it.qty > 0 &&
-        Number.isFinite(it.unit_price) && it.unit_price >= 0,
+        it.description &&
+        Number.isFinite(it.qty) && it.qty > 0 && it.qty <= 100_000 &&
+        Number.isFinite(it.unit_price) && it.unit_price >= 0 && it.unit_price <= 100_000_000,
     );
 
   if (!customerName || !customerEmail || !customerEmail.includes("@") || items.length === 0) {
     return NextResponse.json(
       { error: "customerName, valid customerEmail and at least one line item are required" },
+      { status: 400 },
+    );
+  }
+
+  // Sanity cap on the grand total so a runaway amount can't be stored and
+  // overflow the UI (qty ≤ 100k × price ≤ 100M per line, capped overall).
+  const grandTotal = items.reduce((s, it) => s + it.qty * it.unit_price, 0) * 1.15;
+  if (grandTotal > 1_000_000_000) {
+    return NextResponse.json(
+      { error: "Invoice total is too large. Please check the quantities and prices." },
       { status: 400 },
     );
   }

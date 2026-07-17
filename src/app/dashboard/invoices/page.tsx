@@ -2,6 +2,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { InvoiceForm } from "@/components/invoice-form";
 import { MarkPaidButton } from "@/components/mark-paid-button";
+import { formatMoney, exactMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function InvoicesPage() {
               key={inv.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4"
             >
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{inv.number}</span>
                   <span
@@ -76,13 +77,16 @@ export default async function InvoicesPage() {
                     {inv.status}
                   </span>
                 </div>
-                <div className="mt-0.5 text-sm text-slate-500" dir="auto">
+                <div className="mt-0.5 truncate text-sm text-slate-500" dir="auto">
                   {inv.customer_name} · {inv.customer_email}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-emerald-400">
-                  {Number(inv.total).toLocaleString("en-US", { minimumFractionDigits: 2 })} {inv.currency}
+              <div className="flex shrink-0 items-center gap-3">
+                <span
+                  className="font-semibold text-emerald-400 tabular-nums"
+                  title={`${exactMoney(inv.total)} ${inv.currency}`}
+                >
+                  {formatMoney(inv.total)} {inv.currency}
                 </span>
                 {!ctx.isDemo && inv.status !== "paid" && <MarkPaidButton id={inv.id} />}
               </div>

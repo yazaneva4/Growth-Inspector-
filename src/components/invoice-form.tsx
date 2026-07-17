@@ -107,6 +107,7 @@ export function InvoiceForm() {
             required
             type="number"
             min="1"
+            max="100000"
             value={l.qty}
             onChange={(e) => setLine(i, { qty: e.target.value })}
             placeholder="Qty"
@@ -116,6 +117,7 @@ export function InvoiceForm() {
             required
             type="number"
             min="0"
+            max="100000000"
             step="0.01"
             value={l.unit_price}
             onChange={(e) => setLine(i, { unit_price: e.target.value })}
