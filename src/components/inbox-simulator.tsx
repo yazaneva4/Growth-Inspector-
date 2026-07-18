@@ -33,12 +33,37 @@ export function InboxSimulator() {
   const [loading, setLoading] = useState(false);
   const [speakReplies, setSpeakReplies] = useState(false);
 
-  function speak(text: string, lang?: string) {
-    if (!speakReplies || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  function speakBrowser(text: string, lang?: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang === "en" ? "en-US" : "ar-SA";
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utter);
+  }
+
+  async function speak(text: string, lang?: string) {
+    if (!speakReplies || typeof window === "undefined") return;
+    // Prefer the high-quality ElevenLabs voice; if it isn't configured
+    // (503) or errors, fall back to the browser's built-in voice.
+    try {
+      const res = await fetch("/api/voice-chat/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        window.speechSynthesis?.cancel();
+        await audio.play();
+        return;
+      }
+    } catch {
+      // fall through to browser TTS
+    }
+    speakBrowser(text, lang);
   }
 
   const [handle] = useState(
