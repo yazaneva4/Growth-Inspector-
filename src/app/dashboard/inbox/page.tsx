@@ -114,7 +114,7 @@ export default async function InboxPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">
-            {ctx.email ? `Welcome back, ${ctx.email.split("@")[0]} 👋` : "Inbox"}
+            {ctx.name ? `Welcome back, ${ctx.name} 👋` : "Inbox"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             {conversations.length} conversation{conversations.length === 1 ? "" : "s"} · updates live
@@ -215,7 +215,7 @@ export default async function InboxPage({
         {/* Right pane: tester, thread, or empty */}
         <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5">
           {showTester ? (
-            <InboxSimulator selfName={ctx.email ? ctx.email.split("@")[0] : null} />
+            <InboxSimulator selfName={ctx.name} />
           ) : selected ? (
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">

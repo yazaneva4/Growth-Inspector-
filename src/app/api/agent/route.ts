@@ -4,6 +4,9 @@ import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { runGrowthAgent } from "@/lib/ai/agent";
 import { geminiConfigured } from "@/lib/ai/gemini";
 
+// The agent chains several tool calls — give it headroom before timing out.
+export const maxDuration = 60;
+
 /** Runs the Growth Agent (Gemini function-calling) against the signed-in
  *  workspace, or the public demo workspace when signed out. */
 export async function POST(req: NextRequest) {

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { respondBestAvailable, AIUnavailableError } from "@/lib/ai/responder";
 import type { BrandVoice, ReplyMode } from "@/lib/types";
 
+// Allow up to 30s for the AI call (and any fallback tiers) so a slow provider
+// doesn't get killed early and surface as a "crash" to the user.
+export const maxDuration = 30;
+
 /**
  * Live demo endpoint: runs the full responder pipeline on a single message
  * without touching the database. Tries Claude, then Gemini — always a real

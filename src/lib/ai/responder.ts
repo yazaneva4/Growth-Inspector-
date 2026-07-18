@@ -226,31 +226,17 @@ export async function respond(
     customerName?: string | null;
   },
 ): Promise<ResponderResult> {
-  const history = opts.history ?? [];
-  const analysis = await analyzeMessage(message, history);
-
-  // Guardrail: hard-block topics never auto-send.
-  if (analysis.hard_block || analysis.intent === "spam") {
-    return {
-      analysis,
-      reply: "",
-      confidence: 0,
-      decision: analysis.intent === "spam" ? "draft" : "escalate",
-      escalation_reason: analysis.hard_block ? "hard_block_topic" : undefined,
-    };
-  }
-
-  const { reply, confidence } = await generateReply(
-    message,
-    analysis,
-    opts.voice,
-    history,
-    opts.channel ?? "text",
-    opts.customerName,
+  // Single combined call (classify + draft together) — one round-trip instead
+  // of two, roughly halving latency so the inbox feels responsive.
+  const { system, user } = buildCombinedPrompt(message, opts);
+  const parsed = await structured<MessageAnalysis & { reply: string; confidence: number }>(
+    MODELS.reply,
+    system,
+    user,
+    COMBINED_RESULT_SCHEMA,
+    "respond",
   );
-
-  const { decision, escalation_reason } = decideAction(analysis, confidence, opts.replyMode, opts.threshold);
-  return { analysis, reply, confidence, decision, escalation_reason };
+  return finalizeCombinedResult(parsed, opts);
 }
 
 /** Shared send/draft/escalate matrix used by every provider. */
@@ -300,8 +286,9 @@ type ResponderOpts = {
   customerName?: string | null;
 };
 
-/** Prompt for the single-call Gemini fallback provider: classify + draft
- *  the reply together, instead of two separate calls. */
+/** Single-call prompt used by every provider (Claude, z.ai, Gemini,
+ *  OpenRouter): classify + draft the reply together in one pass instead of
+ *  two round-trips — faster, and consistent across providers. */
 function buildCombinedPrompt(message: string, opts: ResponderOpts) {
   const history = opts.history ?? [];
   const convo = history.slice(-6).map((m) => `${m.author}: ${m.body}`).join("\n");
@@ -314,7 +301,15 @@ function buildCombinedPrompt(message: string, opts: ResponderOpts) {
     "Understand Saudi Arabic dialects (Khaleeji/Najdi), Arabizi, MSA, English, and code-switching.",
     "Classify the message AND draft the reply in one pass.",
     "",
-    identityLine,
+    "Reply rules:",
+    "- Reply in the EXACT same language and dialect register the customer used.",
+    "- Be warm, concise, and helpful; respect Saudi etiquette and culture.",
+    "- Never invent prices, policies, or commitments not in the brand facts below.",
+    "- If unsure, lower your confidence score rather than guessing.",
+    ...(opts.channel === "voice"
+      ? ["- This reply is SPOKEN on a phone call: 1-3 short natural sentences, no emoji/markdown."]
+      : []),
+    `- ${identityLine}`,
     "",
     `Brand voice:\n${brandVoiceBlock(opts.voice)}`,
     "",

@@ -3,6 +3,8 @@ import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { composeText, ComposeUnavailableError } from "@/lib/ai/compose";
 
+export const maxDuration = 30;
+
 /**
  * Generates a warm, detailed "thank you for joining our CRM" message for a
  * client, using the agentic open-source AI chain (Claude → OpenRouter →

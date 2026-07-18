@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 export interface CurrentContext {
   /** Logged-in user's email, or null for anonymous visitors. */
   email: string | null;
+  /** Display name from the user's profile (falls back to the email prefix). */
+  name: string | null;
   /** Logged-in user's id, or null for anonymous visitors. */
   userId: string | null;
   /** The user's role in their org ("owner" sees everything by default). */
@@ -33,8 +35,11 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { email: null, userId: null, role: null, orgSlug: "demo", isDemo: true, onboarded: true };
+    return { email: null, name: null, userId: null, role: null, orgSlug: "demo", isDemo: true, onboarded: true };
   }
+
+  const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
+  const name = fullName || user.email?.split("@")[0] || null;
 
   // Accept any pending team invites for this user's email (joins their
   // employer's workspace instead of creating a new one).
@@ -70,6 +75,7 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
 
   return {
     email: user.email ?? null,
+    name,
     userId: user.id,
     role,
     orgSlug: slug ?? "demo",

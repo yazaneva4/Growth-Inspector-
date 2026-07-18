@@ -5,6 +5,7 @@ import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { SettingsForm } from "@/components/settings-form";
 import { ConnectedAccounts } from "@/components/connected-accounts";
 import { BackupContacts } from "@/components/backup-contacts";
+import { ProfileNameForm } from "@/components/profile-name-form";
 import type { BrandVoice, ReplyMode } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +64,18 @@ export default async function SettingsPage() {
           <span className="text-amber-400"> Sign in to edit your workspace.</span>
         )}
       </p>
+
+      {!ctx.isDemo && (
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-semibold text-slate-900">Your name</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            How the AI addresses you and how you appear across the app.
+          </p>
+          <div className="mt-4">
+            <ProfileNameForm initialName={ctx.name ?? ""} />
+          </div>
+        </div>
+      )}
 
       <div className="mt-6">
         <SettingsForm initial={initial} canSave={!ctx.isDemo} />

@@ -3,6 +3,10 @@ import { createPublicClient } from "@/lib/supabase/server";
 import { handleInbound } from "@/lib/orchestrator";
 import { AIUnavailableError } from "@/lib/ai/responder";
 
+// Allow up to 30s for the AI pipeline (+ fallback tiers) so a slow provider
+// doesn't get killed early and surface as a "crash" to the user.
+export const maxDuration = 30;
+
 /**
  * Persisting inbox endpoint for the public demo workspace. Routes an inbound
  * message through the full pipeline (analyze → guardrail → reply → decide)
