@@ -9,7 +9,9 @@ export default function AgentPage() {
       <h1 className="text-2xl font-bold">Growth in Brilliance</h1>
       <p className="mt-1 text-sm text-slate-500">
         Give it a goal in plain English — it autonomously checks your analytics,
-        competitors, and trend radar, then reports back with a concrete answer.
+        competitors, and trend radar, and can take action too: send an email
+        or open a WhatsApp message for you. It reports back and checks in on
+        how it went.
       </p>
 
       <div className="mt-6">
