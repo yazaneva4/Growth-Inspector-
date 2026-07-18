@@ -6,6 +6,7 @@ import {
   OPENROUTER_MODEL_A,
   OPENROUTER_MODEL_B,
 } from "./openrouter";
+import { zaiChatJSON, zaiConfigured } from "./zai";
 import { withRetry } from "./retry";
 import type { BrandVoice, Intent, Language } from "@/lib/types";
 
@@ -367,29 +368,45 @@ export async function respondWithGemini(
  * Gemini, OpenRouter models don't take a schema object, so the required
  * JSON shape is spelled out in the prompt and parsed defensively.
  */
+/** JSON-shape instruction appended to the system prompt for OpenAI-compatible
+ *  providers (OpenRouter, z.ai) that take a plain prompt rather than a schema. */
+const COMBINED_JSON_SPEC = [
+  "",
+  'Respond with ONLY a JSON object, no prose, with exactly these keys:',
+  '{"intent": "price_inquiry|complaint|hot_lead|spam|support|other",',
+  ' "sentiment": "positive|neutral|negative",',
+  ' "language": "ar|ar-dialect|arabizi|en|mixed",',
+  ' "lead_score": 0-100 integer,',
+  ' "hard_block": true|false,',
+  ' "hard_block_reason": string (empty if none),',
+  ' "reply": string (the customer-facing reply, empty if hard_block or spam),',
+  ' "confidence": 0-1 number}',
+].join("\n");
+
 export async function respondWithOpenRouter(
   message: string,
   opts: ResponderOpts,
   model: string,
 ): Promise<ResponderResult> {
   const { system, user } = buildCombinedPrompt(message, opts);
-  const jsonSpec = [
-    "",
-    'Respond with ONLY a JSON object, no prose, with exactly these keys:',
-    '{"intent": "price_inquiry|complaint|hot_lead|spam|support|other",',
-    ' "sentiment": "positive|neutral|negative",',
-    ' "language": "ar|ar-dialect|arabizi|en|mixed",',
-    ' "lead_score": 0-100 integer,',
-    ' "hard_block": true|false,',
-    ' "hard_block_reason": string (empty if none),',
-    ' "reply": string (the customer-facing reply, empty if hard_block or spam),',
-    ' "confidence": 0-1 number}',
-  ].join("\n");
-
   const parsed = await withRetry(() =>
     openrouterChatJSON<MessageAnalysis & { reply: string; confidence: number }>({
       model,
-      system: system + jsonSpec,
+      system: system + COMBINED_JSON_SPEC,
+      user,
+    }),
+  );
+  return finalizeCombinedResult(parsed, opts);
+}
+
+export async function respondWithZai(
+  message: string,
+  opts: ResponderOpts,
+): Promise<ResponderResult> {
+  const { system, user } = buildCombinedPrompt(message, opts);
+  const parsed = await withRetry(() =>
+    zaiChatJSON<MessageAnalysis & { reply: string; confidence: number }>({
+      system: system + COMBINED_JSON_SPEC,
       user,
     }),
   );
@@ -407,12 +424,13 @@ export class AIUnavailableError extends Error {
 }
 
 /**
- * Provider-selecting entry point — four-tier fallback chain, each step
+ * Provider-selecting entry point — five-tier fallback chain, each step
  * retrying transient failures internally before moving to the next:
  *   1. Claude              (best quality)
- *   2. OpenRouter Tier A    (openai/gpt-oss-120b:free by default)
- *   3. Gemini
- *   4. OpenRouter Tier B    (google/gemma-4-31b-it:free by default — final catch-all)
+ *   2. z.ai / GLM          (glm-4.6 by default — paid, high quality)
+ *   3. OpenRouter Tier A    (openai/gpt-oss-120b:free by default)
+ *   4. Gemini
+ *   5. OpenRouter Tier B    (google/gemma-4-31b-it:free by default — final catch-all)
  * Throws AIUnavailableError if no provider is configured or all fail —
  * never silently returns a demo reply.
  */
@@ -432,6 +450,14 @@ export async function respondBestAvailable(
       return await respond(message, opts);
     } catch (err) {
       console.error("Claude responder failed, falling back:", err);
+      lastErr = err;
+    }
+  }
+  if (zaiConfigured()) {
+    try {
+      return await respondWithZai(message, opts);
+    } catch (err) {
+      console.error("z.ai (GLM) responder failed, falling back:", err);
       lastErr = err;
     }
   }

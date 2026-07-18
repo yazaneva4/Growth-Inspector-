@@ -7,6 +7,7 @@ import {
   OPENROUTER_MODEL_A,
   OPENROUTER_MODEL_B,
 } from "@/lib/ai/openrouter";
+import { zaiConfigured, ZAI_MODEL } from "@/lib/ai/zai";
 
 /**
  * Integration health check. Reports which API keys are configured WITHOUT
@@ -21,6 +22,7 @@ export async function GET() {
       supabase: has(process.env.NEXT_PUBLIC_SUPABASE_URL) ? "configured" : "fallback",
       supabase_service_role: has(process.env.SUPABASE_SERVICE_ROLE_KEY), // also enables the sign-in self-heal for accounts stuck unconfirmed
       anthropic: has(process.env.ANTHROPIC_API_KEY), // AI responder + weekly report (primary provider)
+      zai: zaiConfigured() ? ZAI_MODEL : false, // first responder fallback after Claude (z.ai / GLM)
       gemini: geminiConfigured(), // responder fallback + Growth Agent
       openrouter: openrouterConfigured()
         ? { tier_a: OPENROUTER_MODEL_A, tier_b: OPENROUTER_MODEL_B }

@@ -6,6 +6,7 @@ import {
   OPENROUTER_MODEL_A,
   OPENROUTER_MODEL_B,
 } from "./openrouter";
+import { zaiChatText, zaiConfigured } from "./zai";
 
 /** Thrown when no AI provider is configured or every tier fails. */
 export class ComposeUnavailableError extends Error {
@@ -16,8 +17,8 @@ export class ComposeUnavailableError extends Error {
 }
 
 /**
- * Free-form text generation over the same open-source-friendly fallback chain
- * the responder uses — Claude → OpenRouter Tier A → Gemini → OpenRouter Tier B.
+ * Free-form text generation over the same fallback chain the responder uses —
+ * Claude → z.ai/GLM → OpenRouter Tier A → Gemini → OpenRouter Tier B.
  * Returns plain text (no JSON). Each provider is tried in turn; the first that
  * succeeds wins, so the app keeps working even if only the free OpenRouter /
  * Gemini tiers are configured.
@@ -43,6 +44,15 @@ export async function composeText(opts: {
       if (text) return text;
     } catch (err) {
       console.error("Claude compose failed, falling back:", err);
+      lastErr = err;
+    }
+  }
+
+  if (zaiConfigured()) {
+    try {
+      return await zaiChatText(opts);
+    } catch (err) {
+      console.error("z.ai (GLM) compose failed, falling back:", err);
       lastErr = err;
     }
   }
