@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
   const threshold: number =
     typeof body?.threshold === "number" ? body.threshold : 0.75;
   const history: { author: string; body: string }[] = body?.history ?? [];
+  const customerName: string | null =
+    typeof body?.customerName === "string" ? body.customerName : null;
 
   try {
     const result = await respondBestAvailable(message, {
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
       replyMode,
       threshold,
       history,
+      customerName,
     });
     return NextResponse.json(result);
   } catch (err) {

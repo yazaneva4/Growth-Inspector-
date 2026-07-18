@@ -167,7 +167,12 @@ export async function generateReply(
   voice: BrandVoice,
   history: { author: string; body: string }[] = [],
   channel: "text" | "voice" = "text",
+  customerName?: string | null,
 ): Promise<{ reply: string; confidence: number }> {
+  const name = customerName?.trim();
+  const identityRule = name
+    ? `6. The customer's name is "${name}". Address them naturally by their first name when it fits, and never use any other name.`
+    : "6. You do NOT know the customer's name — never invent, guess, or use a placeholder name; address them politely without one.";
   const system = [
     "You are Growth Inspector replying to a customer on social media for a Saudi business.",
     "CRITICAL RULES:",
@@ -178,9 +183,10 @@ export async function generateReply(
     "3. Be warm, concise, and helpful. Respect Saudi etiquette and culture.",
     "4. Never invent prices, policies, or commitments not in the business facts.",
     "5. If you are not sure, lower your confidence score rather than guessing.",
+    identityRule,
     ...(channel === "voice"
       ? [
-          "6. This reply will be SPOKEN ALOUD on a live phone call: 1-3 short",
+          "7. This reply will be SPOKEN ALOUD on a live phone call: 1-3 short",
           "   natural sentences, no emoji, no markdown, no bullet lists, no",
           "   headings — plain spoken language only, as if talking to the caller.",
         ]
@@ -217,6 +223,7 @@ export async function respond(
     threshold: number;
     history?: { author: string; body: string }[];
     channel?: "text" | "voice";
+    customerName?: string | null;
   },
 ): Promise<ResponderResult> {
   const history = opts.history ?? [];
@@ -239,6 +246,7 @@ export async function respond(
     opts.voice,
     history,
     opts.channel ?? "text",
+    opts.customerName,
   );
 
   const { decision, escalation_reason } = decideAction(analysis, confidence, opts.replyMode, opts.threshold);
@@ -286,6 +294,10 @@ type ResponderOpts = {
   threshold: number;
   history?: { author: string; body: string }[];
   channel?: "text" | "voice";
+  /** The customer's known name (from their profile/handle), if any. Used so
+   *  the AI addresses them correctly — and never invents a name it doesn't
+   *  actually know. */
+  customerName?: string | null;
 };
 
 /** Prompt for the single-call Gemini fallback provider: classify + draft
@@ -293,10 +305,16 @@ type ResponderOpts = {
 function buildCombinedPrompt(message: string, opts: ResponderOpts) {
   const history = opts.history ?? [];
   const convo = history.slice(-6).map((m) => `${m.author}: ${m.body}`).join("\n");
+  const name = opts.customerName?.trim();
+  const identityLine = name
+    ? `The customer's name is "${name}". Address them naturally by their first name when it fits. Do NOT use any other name.`
+    : "You do NOT know the customer's name. Never invent, guess, or use a placeholder name — address them politely without one.";
   const system = [
     "You are the intelligence layer of Growth Inspector, a Saudi social media AI.",
     "Understand Saudi Arabic dialects (Khaleeji/Najdi), Arabizi, MSA, English, and code-switching.",
     "Classify the message AND draft the reply in one pass.",
+    "",
+    identityLine,
     "",
     `Brand voice:\n${brandVoiceBlock(opts.voice)}`,
     "",
@@ -442,6 +460,7 @@ export async function respondBestAvailable(
     threshold: number;
     history?: { author: string; body: string }[];
     channel?: "text" | "voice";
+    customerName?: string | null;
   },
 ): Promise<ResponderResult> {
   let lastErr: unknown;

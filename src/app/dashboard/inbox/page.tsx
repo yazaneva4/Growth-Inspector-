@@ -215,7 +215,7 @@ export default async function InboxPage({
         {/* Right pane: tester, thread, or empty */}
         <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5">
           {showTester ? (
-            <InboxSimulator />
+            <InboxSimulator selfName={ctx.email ? ctx.email.split("@")[0] : null} />
           ) : selected ? (
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-3">

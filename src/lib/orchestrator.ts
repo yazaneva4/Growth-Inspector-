@@ -122,6 +122,7 @@ export async function handleInbound(
       replyMode: org.reply_mode,
       threshold: Number(org.confidence_threshold),
       history: history ?? [],
+      customerName: conversation.customer_name ?? inbound.customerName ?? null,
     });
   } catch (err) {
     if (err instanceof AIUnavailableError) {

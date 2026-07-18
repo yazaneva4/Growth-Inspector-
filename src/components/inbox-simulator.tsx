@@ -23,7 +23,7 @@ const decisionStyle: Record<string, string> = {
   escalate: "bg-rose-500/15 text-rose-600 border-rose-500/40",
 };
 
-export function InboxSimulator() {
+export function InboxSimulator({ selfName }: { selfName?: string | null }) {
   const router = useRouter();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -86,8 +86,9 @@ export function InboxSimulator() {
             channel,
             customerHandle:
               channel === "email" ? `${handle}@example.com` : handle,
+            customerName: selfName ?? undefined,
           }
-        : { message, replyMode: mode, history };
+        : { message, replyMode: mode, history, customerName: selfName ?? undefined };
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
