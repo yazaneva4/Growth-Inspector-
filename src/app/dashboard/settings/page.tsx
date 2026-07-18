@@ -39,7 +39,7 @@ export default async function SettingsPage() {
             .select("id, platform, external_id, display_name, is_active")
             .eq("org_id", org.id)
             .eq("is_active", true)
-            .in("platform", ["whatsapp", "instagram", "x", "snapchat", "tiktok"])
+            .in("platform", ["instagram", "x", "snapchat", "tiktok"])
             .order("platform"),
           db.from("backup_contacts").select("id, name, phone").eq("org_id", org.id).order("created_at"),
         ])

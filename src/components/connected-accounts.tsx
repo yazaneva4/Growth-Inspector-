@@ -12,7 +12,6 @@ type Account = {
 };
 
 const PLATFORM_LABEL: Record<string, string> = {
-  whatsapp: "WhatsApp",
   instagram: "Instagram",
   x: "X (Twitter)",
   snapchat: "Snapchat",
@@ -20,7 +19,6 @@ const PLATFORM_LABEL: Record<string, string> = {
 };
 
 const PLATFORM_ID_HINT: Record<string, string> = {
-  whatsapp: "WABA phone_number_id (from Meta Business Manager)",
   instagram: "Page / IG-connected id",
   x: "X account handle or id",
   snapchat: "Snapchat account id",
@@ -35,7 +33,7 @@ export function ConnectedAccounts({
   webhookBase: string;
 }) {
   const router = useRouter();
-  const [platform, setPlatform] = useState("whatsapp");
+  const [platform, setPlatform] = useState("instagram");
   const [externalId, setExternalId] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -139,8 +137,8 @@ export function ConnectedAccounts({
 
       <p className="mt-3 text-xs text-slate-500">
         Point the platform&rsquo;s webhook at{" "}
-        <code className="rounded bg-slate-100 px-1 py-0.5">{webhookBase}/whatsapp</code> (or{" "}
-        <code className="rounded bg-slate-100 px-1 py-0.5">/instagram</code>, etc.) once connected.
+        <code className="rounded bg-slate-100 px-1 py-0.5">{webhookBase}/instagram</code> (etc.)
+        once connected.
       </p>
     </div>
   );

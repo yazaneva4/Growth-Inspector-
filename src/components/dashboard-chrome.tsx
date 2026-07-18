@@ -29,6 +29,7 @@ const navGroups = [
     label: "INBOX",
     items: [
       { href: "/dashboard/inbox", label: "Inbox", icon: "💬" },
+      { href: "/dashboard/chat", label: "Chat", icon: "🗨" },
       { href: "/dashboard/escalations", label: "Escalations", icon: "⚠" },
       { href: "/dashboard/invoices", label: "Invoices", icon: "🧾" },
     ],

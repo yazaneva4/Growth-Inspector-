@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { SocialPlatform } from "@/lib/types";
 
-const CONNECTABLE_PLATFORMS = ["whatsapp", "instagram", "x", "snapchat", "tiktok"] as const;
+const CONNECTABLE_PLATFORMS = ["instagram", "x", "snapchat", "tiktok"] as const;
 
 async function requireOrg() {
   const supabase = await createClient();
