@@ -2,31 +2,68 @@
 
 import { useState } from "react";
 
+/** Country dial codes — Saudi Arabia first (the default). */
+const COUNTRIES = [
+  { code: "966", flag: "🇸🇦", name: "Saudi Arabia" },
+  { code: "971", flag: "🇦🇪", name: "UAE" },
+  { code: "965", flag: "🇰🇼", name: "Kuwait" },
+  { code: "974", flag: "🇶🇦", name: "Qatar" },
+  { code: "973", flag: "🇧🇭", name: "Bahrain" },
+  { code: "968", flag: "🇴🇲", name: "Oman" },
+  { code: "20", flag: "🇪🇬", name: "Egypt" },
+  { code: "962", flag: "🇯🇴", name: "Jordan" },
+  { code: "961", flag: "🇱🇧", name: "Lebanon" },
+  { code: "91", flag: "🇮🇳", name: "India" },
+  { code: "92", flag: "🇵🇰", name: "Pakistan" },
+  { code: "44", flag: "🇬🇧", name: "UK" },
+  { code: "1", flag: "🇺🇸", name: "USA / Canada" },
+];
+
 /** Builds a wa.me deep link that opens WhatsApp with the message pre-filled
- *  as a draft — you review and tap send yourself. No API, no auto-send. */
-function draftLink(phone: string, message: string): string {
-  const digits = phone.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+ *  as a draft — you review and tap send yourself. No API, no auto-send.
+ *  `dialCode` is the country code (e.g. 966); `local` is the rest of the
+ *  number without the leading 0 or +. */
+function draftLink(dialCode: string, local: string, message: string): string {
+  const localDigits = local.replace(/[^\d]/g, "").replace(/^0+/, "");
+  return `https://wa.me/${dialCode}${localDigits}?text=${encodeURIComponent(message)}`;
 }
 
 export function WhatsAppComposer() {
+  const [dialCode, setDialCode] = useState(COUNTRIES[0].code); // Saudi Arabia
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
 
-  const ready = phone.replace(/[^\d]/g, "").length >= 8 && message.trim().length > 0;
+  const localDigits = phone.replace(/[^\d]/g, "").replace(/^0+/, "");
+  const ready = localDigits.length >= 6 && message.trim().length > 0;
 
   return (
     <div className="max-w-xl space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
       <div>
         <label className="text-xs font-medium text-slate-500">WhatsApp number</label>
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+966 5X XXX XXXX"
-          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-        />
+        <div className="mt-1 flex gap-2">
+          <select
+            value={dialCode}
+            onChange={(e) => setDialCode(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm outline-none focus:border-emerald-500"
+            aria-label="Country code"
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name} +{c.code}
+              </option>
+            ))}
+          </select>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="5X XXX XXXX"
+            inputMode="tel"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          />
+        </div>
         <p className="mt-1 text-[11px] text-slate-400">
-          Include the country code (e.g. 966 for Saudi Arabia).
+          Pick the country — the code (+{dialCode}) is added automatically.
+          {localDigits && ` Sending to +${dialCode} ${localDigits}.`}
         </p>
       </div>
 
@@ -44,7 +81,7 @@ export function WhatsAppComposer() {
 
       {ready ? (
         <a
-          href={draftLink(phone, message)}
+          href={draftLink(dialCode, phone, message)}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
