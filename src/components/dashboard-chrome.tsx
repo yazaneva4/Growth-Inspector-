@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { Logo, LogoMark } from "@/components/logo";
 import { TopBar } from "@/components/top-bar";
+import { SparkleIcon } from "@/components/sparkle-icon";
 
 const navGroups = [
   {
@@ -64,19 +65,6 @@ const navGroups = [
     ],
   },
 ];
-
-/** Animated sparkle that cycles ✳️ → ✴️ → ❇️, like the Claude Code terminal
- *  spinner. Pure CSS (keyframes in globals.css) — three stacked glyphs whose
- *  opacity is staggered so exactly one shows at a time. */
-function SparkleIcon() {
-  return (
-    <span className="gi-sparkle text-xs" aria-hidden>
-      <span>✳️</span>
-      <span>✴️</span>
-      <span>❇️</span>
-    </span>
-  );
-}
 
 function AccountFooter({ email }: { email: string | null }) {
   if (email) {
@@ -217,7 +205,7 @@ export function DashboardChrome({
                       }`}
                     >
                       {n.icon === "sparkle" ? (
-                        <SparkleIcon />
+                        <SparkleIcon className="text-xs" />
                       ) : (
                         <span className="text-xs opacity-70">{n.icon}</span>
                       )}

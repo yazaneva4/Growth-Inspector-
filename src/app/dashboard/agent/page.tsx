@@ -1,4 +1,5 @@
 import { GrowthAgent } from "@/components/growth-agent";
+import { SparkleIcon } from "@/components/sparkle-icon";
 import { geminiConfigured } from "@/lib/ai/gemini";
 
 export const dynamic = "force-dynamic";
@@ -6,7 +7,9 @@ export const dynamic = "force-dynamic";
 export default function AgentPage() {
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold">Growth Operator ⭐</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-bold">
+        Growth Operator <SparkleIcon className="text-2xl" />
+      </h1>
       <p className="mt-1 text-sm text-slate-500">
         Give it a goal in plain English — it autonomously checks your analytics,
         competitors, and trend radar, and can take action too: send an email
