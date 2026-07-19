@@ -21,7 +21,7 @@ const navGroups = [
     items: [
       { href: "/dashboard/analytics", label: "Inspector report", icon: "📈" },
       { href: "/dashboard/trends", label: "Trend radar", icon: "📡" },
-      { href: "/dashboard/agent", label: "Growth in Brilliance", icon: "🤖" },
+      { href: "/dashboard/agent", label: "Growth Operator", icon: "⭐" },
       { href: "/dashboard/competitors", label: "Competitors", icon: "🎯" },
     ],
   },
@@ -203,7 +203,17 @@ export function DashboardChrome({
                           : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
-                      <span className="text-xs opacity-70">{n.icon}</span>
+                      <span
+                        className="text-xs"
+                        // Tint every emoji to the brand orange so the icon set
+                        // reads as one consistent color (matches the logo mark).
+                        style={{
+                          filter:
+                            "brightness(0) saturate(100%) invert(52%) sepia(84%) saturate(2400%) hue-rotate(348deg) brightness(101%) contrast(96%)",
+                        }}
+                      >
+                        {n.icon}
+                      </span>
                       <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
                     </Link>
                   );
