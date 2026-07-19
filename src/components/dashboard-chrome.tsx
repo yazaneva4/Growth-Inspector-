@@ -21,7 +21,7 @@ const navGroups = [
     items: [
       { href: "/dashboard/analytics", label: "Inspector report", icon: "📈" },
       { href: "/dashboard/trends", label: "Trend radar", icon: "📡" },
-      { href: "/dashboard/agent", label: "Growth Operator", icon: "⭐" },
+      { href: "/dashboard/agent", label: "Growth Operator", icon: "sparkle" },
       { href: "/dashboard/competitors", label: "Competitors", icon: "🎯" },
     ],
   },
@@ -64,6 +64,19 @@ const navGroups = [
     ],
   },
 ];
+
+/** Animated sparkle that cycles ✳️ → ✴️ → ❇️, like the Claude Code terminal
+ *  spinner. Pure CSS (keyframes in globals.css) — three stacked glyphs whose
+ *  opacity is staggered so exactly one shows at a time. */
+function SparkleIcon() {
+  return (
+    <span className="gi-sparkle text-xs" aria-hidden>
+      <span>✳️</span>
+      <span>✴️</span>
+      <span>❇️</span>
+    </span>
+  );
+}
 
 function AccountFooter({ email }: { email: string | null }) {
   if (email) {
@@ -203,17 +216,11 @@ export function DashboardChrome({
                           : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                       }`}
                     >
-                      <span
-                        className="text-xs"
-                        // Tint every emoji to the brand orange so the icon set
-                        // reads as one consistent color (matches the logo mark).
-                        style={{
-                          filter:
-                            "brightness(0) saturate(100%) invert(52%) sepia(84%) saturate(2400%) hue-rotate(348deg) brightness(101%) contrast(96%)",
-                        }}
-                      >
-                        {n.icon}
-                      </span>
+                      {n.icon === "sparkle" ? (
+                        <SparkleIcon />
+                      ) : (
+                        <span className="text-xs opacity-70">{n.icon}</span>
+                      )}
                       <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
                     </Link>
                   );
