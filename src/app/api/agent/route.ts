@@ -5,8 +5,10 @@ import { AgentHistoryMessage, AgentProvider, agentProviders, isProviderTemporari
 
 export const maxDuration = 60;
 
+const PROVIDERS: AgentProvider[] = ["openai", "anthropic", "zai", "gemini"];
+
 export async function GET() {
-  return NextResponse.json({ providers: agentProviders() });
+  return NextResponse.json({ providers: await agentProviders() }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
@@ -14,11 +16,12 @@ export async function POST(req: NextRequest) {
   const goal: string | undefined = body?.goal;
   if (!goal?.trim()) return NextResponse.json({ error: "goal required" }, { status: 400 });
 
-  const provider: AgentProvider = body?.provider === "zai" ? "zai" : "gemini";
-  const providers = agentProviders();
+  const provider: AgentProvider = PROVIDERS.includes(body?.provider) ? body.provider : "gemini";
+  const model = typeof body?.model === "string" ? body.model : undefined;
+  const providers = await agentProviders();
   if (!providers[provider].configured) {
-    const label = provider === "zai" ? "z.ai" : "Gemini";
-    return NextResponse.json({ error: `${label} is not configured on the server.`, temporaryUnavailable: false }, { status: 503 });
+    const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
+    return NextResponse.json({ error: `${label} is not configured on the server.`, temporaryUnavailable: false, provider, model }, { status: 503 });
   }
 
   const rawHistory = Array.isArray(body?.history) ? body.history : [];
@@ -29,7 +32,7 @@ export async function POST(req: NextRequest) {
       return (value.role === "user" || value.role === "assistant") && typeof value.content === "string";
     })
     .slice(-16)
-    .map((message: { role: string; content: string }) => ({ role: message.role as "user" | "assistant", content: message.content }));
+    .map((message) => ({ role: message.role as "user" | "assistant", content: message.content }));
 
   const ctx = await getCurrentContext();
   const db = ctx.isDemo ? createPublicClient() : await createClient();
@@ -37,14 +40,15 @@ export async function POST(req: NextRequest) {
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
 
   try {
-    const run = await runGrowthAgent(goal, { db, orgId: org.id, orgSlug: ctx.orgSlug, orgName: org.name }, { provider, history });
+    const run = await runGrowthAgent(goal, { db, orgId: org.id, orgSlug: ctx.orgSlug, orgName: org.name }, { provider, model, history });
     return NextResponse.json(run);
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : "agent failed";
     const temporaryUnavailable = isProviderTemporarilyUnavailable(err);
+    const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
     return NextResponse.json(
-      { error: temporaryUnavailable ? `${provider === "zai" ? "z.ai" : "Gemini"} is temporarily unavailable because its quota or rate limit was reached.` : message, temporaryUnavailable },
+      { error: temporaryUnavailable ? `${label} is temporarily unavailable because this model's quota or rate limit was reached.` : message, temporaryUnavailable, provider, model },
       { status: temporaryUnavailable ? 429 : 500 },
     );
   }
