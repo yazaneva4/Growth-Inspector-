@@ -26,13 +26,13 @@ export async function POST(req: NextRequest) {
 
   const rawHistory = Array.isArray(body?.history) ? body.history : [];
   const history: AgentHistoryMessage[] = rawHistory
-    .filter((message: unknown): message is { role: string; content: string } => {
+    .filter((message: unknown): message is { role: "user" | "assistant"; content: string } => {
       if (!message || typeof message !== "object") return false;
       const value = message as { role?: unknown; content?: unknown };
       return (value.role === "user" || value.role === "assistant") && typeof value.content === "string";
     })
     .slice(-16)
-    .map((message) => ({ role: message.role as "user" | "assistant", content: message.content }));
+    .map((message: { role: "user" | "assistant"; content: string }): AgentHistoryMessage => ({ role: message.role, content: message.content }));
 
   const ctx = await getCurrentContext();
   const db = ctx.isDemo ? createPublicClient() : await createClient();
