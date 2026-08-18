@@ -2,32 +2,16 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export interface CurrentContext {
-  /** Logged-in user's email, or null for anonymous visitors. */
   email: string | null;
-  /** Display name from the user's profile (falls back to the email prefix). */
   name: string | null;
-  /** Logged-in user's id, or null for anonymous visitors. */
   userId: string | null;
-  /** The user's role in their org ("owner" sees everything by default). */
   role: "owner" | "admin" | "agent" | null;
-  /** Org slug to render: the user's own org, or the public "demo". */
   orgSlug: string;
-  /** True when viewing the public demo (not signed in). */
+  orgName: string | null;
   isDemo: boolean;
-  /** False until the signed-in user has completed the onboarding form. */
   onboarded: boolean;
 }
 
-/**
- * Resolve who is viewing the dashboard. If signed in, ensure they have an
- * organization (creating one on first login via the secure RPC) and return its
- * slug. Otherwise fall back to the public demo workspace.
- *
- * Wrapped in React's cache() so the layout and every page can each call this
- * freely without re-running the auth/org lookup (3+ sequential network
- * round-trips) on every single one — React dedupes concurrent/repeated
- * calls within the same request to a single execution.
- */
 export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   const supabase = await createClient();
   const {
@@ -35,29 +19,48 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { email: null, name: null, userId: null, role: null, orgSlug: "demo", isDemo: true, onboarded: true };
+    return {
+      email: null,
+      name: null,
+      userId: null,
+      role: null,
+      orgSlug: "demo",
+      orgName: "Growth Inspector",
+      isDemo: true,
+      onboarded: true,
+    };
   }
 
   const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
   const name = fullName || user.email?.split("@")[0] || null;
 
-  // Accept any pending team invites for this user's email (joins their
-  // employer's workspace instead of creating a new one).
-  await supabase.rpc("accept_pending_invites");
-
-  // Find an existing membership/org for this user.
-  const { data: membership } = await supabase
+  type OrgRow = { slug?: string; name?: string; onboarded?: boolean };
+  let { data: membership } = await supabase
     .from("memberships")
-    .select("role, organizations(slug, onboarded)")
+    .select("role, organizations(slug, name, onboarded)")
     .limit(1)
     .maybeSingle();
 
-  type OrgRow = { slug?: string; onboarded?: boolean };
-  let slug = (membership?.organizations as OrgRow | null)?.slug;
-  let onboarded = (membership?.organizations as OrgRow | null)?.onboarded ?? false;
+  // Invites only need to be checked when the user does not already have a
+  // membership. Avoiding the RPC on every dashboard request removes a full
+  // round-trip from the hot path for established users.
+  if (!membership) {
+    await supabase.rpc("accept_pending_invites");
+    membership = (
+      await supabase
+        .from("memberships")
+        .select("role, organizations(slug, name, onboarded)")
+        .limit(1)
+        .maybeSingle()
+    ).data;
+  }
+
+  let org = membership?.organizations as OrgRow | null;
+  let slug = org?.slug;
+  let orgName = org?.name ?? null;
+  let onboarded = org?.onboarded ?? false;
   let role = (membership?.role as CurrentContext["role"]) ?? null;
 
-  // First login → create their workspace.
   if (!slug) {
     const defaultName = user.email?.split("@")[0]
       ? `${user.email.split("@")[0]}'s workspace`
@@ -65,11 +68,13 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
     await supabase.rpc("create_organization", { org_name: defaultName });
     const { data: created } = await supabase
       .from("memberships")
-      .select("role, organizations(slug, onboarded)")
+      .select("role, organizations(slug, name, onboarded)")
       .limit(1)
       .maybeSingle();
-    slug = (created?.organizations as OrgRow | null)?.slug;
-    onboarded = (created?.organizations as OrgRow | null)?.onboarded ?? false;
+    org = created?.organizations as OrgRow | null;
+    slug = org?.slug;
+    orgName = org?.name ?? null;
+    onboarded = org?.onboarded ?? false;
     role = (created?.role as CurrentContext["role"]) ?? "owner";
   }
 
@@ -79,6 +84,7 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
     userId: user.id,
     role,
     orgSlug: slug ?? "demo",
+    orgName: orgName ?? "Workspace",
     isDemo: !slug,
     onboarded,
   };
