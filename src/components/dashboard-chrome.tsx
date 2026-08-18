@@ -60,7 +60,6 @@ const navGroups = [
       { href: "/dashboard/settings", label: "Brand voice", icon: "🎙" },
       { href: "/dashboard/team", label: "Team", icon: "👥" },
       { href: "/dashboard/my-tasks", label: "My Tasks", icon: "✅" },
-      { href: "/dashboard/messages", label: "Messages", icon: "✉" },
       { href: "/dashboard/users", label: "Users", icon: "🧑‍💼" },
     ],
   },
