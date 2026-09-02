@@ -30,18 +30,23 @@ create index if not exists ai_operator_messages_conversation_created_idx
 alter table public.ai_operator_conversations enable row level security;
 alter table public.ai_operator_messages enable row level security;
 
+drop policy if exists ai_operator_conversations_all on public.ai_operator_conversations;
+drop policy if exists ai_operator_messages_all on public.ai_operator_messages;
+
 create policy ai_operator_conversations_all on public.ai_operator_conversations
-  for all using (org_id in (select auth_org_ids()))
-  with check (org_id in (select auth_org_ids()));
+  for all using (org_id in (select private.auth_org_ids()))
+  with check (org_id in (select private.auth_org_ids()));
 
 create policy ai_operator_messages_all on public.ai_operator_messages
-  for all using (org_id in (select auth_org_ids()))
-  with check (org_id in (select auth_org_ids()));
+  for all using (org_id in (select private.auth_org_ids()))
+  with check (org_id in (select private.auth_org_ids()));
 
 alter table public.ai_operator_conversations replica identity full;
 alter table public.ai_operator_messages replica identity full;
 
-do $$
+grant select, insert, update, delete on public.ai_operator_conversations, public.ai_operator_messages to authenticated;
+
+DO $$
 begin
   begin
     execute 'alter publication supabase_realtime add table public.ai_operator_conversations';
