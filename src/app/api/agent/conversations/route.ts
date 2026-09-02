@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 async function getDbAndOrg() {
   const ctx = await getCurrentContext();
-  const db = ctx.isDemo ? createPublicClient() : await createClient();
+  // The public demo has no auth.uid(), so only its fixed demo workspace uses
+  // the server-only client. Authenticated workspaces stay behind RLS.
+  const db = ctx.isDemo ? createServiceClient() : await createClient();
   const { data: org } = await db.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
   return { db, org };
 }
@@ -12,11 +14,7 @@ async function getDbAndOrg() {
 export async function GET() {
   const { db, org } = await getDbAndOrg();
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
-  const { data, error } = await db
-    .from("ai_operator_conversations")
-    .select("id,title,archived,created_at,updated_at,ai_operator_messages(id,role,content,provider,model,steps,created_at)")
-    .eq("org_id", org.id)
-    .order("updated_at", { ascending: false });
+  const { data, error } = await db.from("ai_operator_conversations").select("id,title,archived,created_at,updated_at,ai_operator_messages(id,role,content,provider,model,steps,created_at)").eq("org_id", org.id).order("updated_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ conversations: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -41,15 +39,7 @@ export async function POST(req: NextRequest) {
     if (!conversationId || !role || !content.trim()) return NextResponse.json({ error: "invalid message" }, { status: 400 });
     const { data: conversation } = await db.from("ai_operator_conversations").select("id").eq("id", conversationId).eq("org_id", org.id).maybeSingle();
     if (!conversation) return NextResponse.json({ error: "conversation not found" }, { status: 404 });
-    const { data, error } = await db.from("ai_operator_messages").insert({
-      org_id: org.id,
-      conversation_id: conversationId,
-      role,
-      content,
-      provider: typeof body?.provider === "string" ? body.provider : null,
-      model: typeof body?.model === "string" ? body.model : null,
-      steps: Array.isArray(body?.steps) ? body.steps : [],
-    }).select("id,role,content,provider,model,steps,created_at").single();
+    const { data, error } = await db.from("ai_operator_messages").insert({ org_id: org.id, conversation_id: conversationId, role, content, provider: typeof body?.provider === "string" ? body.provider : null, model: typeof body?.model === "string" ? body.model : null, steps: Array.isArray(body?.steps) ? body.steps : [] }).select("id,role,content,provider,model,steps,created_at").single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const { error: updateError } = await db.from("ai_operator_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("org_id", org.id);
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
