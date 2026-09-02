@@ -26,7 +26,7 @@ export const TOOL_DECLARATIONS = [
   { name: "send_whatsapp", description: "Prepare a WhatsApp message and return a wa.me link. Never invent a phone number.", parameters: { type: "object", properties: { phone: { type: "string" }, message: { type: "string" } }, required: ["phone", "message"] } },
 ] as const;
 
-const SYSTEM = (org: string) => `You are Growth Operator for "${org}". Have a natural multi-turn conversation, use tools when workspace data is needed, cite real numbers, and only take actions when explicitly requested.`;
+const SYSTEM = (org: string) => `You are Growth Operator for "${org}". Have a natural multi-turn conversation, use workspace tool results when provided, cite real numbers, and only take actions when explicitly requested.`;
 const historyText = (history: AgentHistoryMessage[]) => history.slice(-16).map((m) => `${m.role === "user" ? "User" : "Growth Operator"}: ${m.content}`).join("\n");
 
 function quotaLike(message: string) {
@@ -38,7 +38,7 @@ export function isProviderTemporarilyUnavailable(error: unknown) { return quotaL
 export async function runTool(name: string, args: Record<string, unknown>, ctx: { db: SupabaseClient; orgId: string; orgSlug: string }) {
   switch (name) {
     case "get_analytics_summary": return (await getAnalytics(typeof args.days === "number" ? args.days : 7, ctx.orgSlug, ctx.db)) ?? { error: "no data" };
-    case "get_competitors": { const { data } = await ctx.db.from("competitors").select("handle, platform, notes").eq("org_id", ctx.orgId).order("created_at", { ascending: true }); return data ?? []; }
+    case "get_competitors": { const { data, error } = await ctx.db.from("competitors").select("handle, platform, notes").eq("org_id", ctx.orgId).order("created_at", { ascending: true }); return error ? { error: error.message } : (data ?? []); }
     case "get_trend_radar": { const a = await getAnalytics(7, ctx.orgSlug, ctx.db); return a ? generateTrendRadar(a) : { error: "no data" }; }
     case "send_email": {
       const to = String(args.to ?? "").trim(), subject = String(args.subject ?? "").trim(), body = String(args.body ?? "").trim();
@@ -78,8 +78,8 @@ async function buildCatalog(): Promise<Record<AgentProvider, AgentProviderState>
 export async function agentProviders() { return buildCatalog(); }
 function chosen(provider: AgentProvider, selected: string | undefined, catalog: Record<AgentProvider, AgentProviderState>) { const models = catalog[provider].models; return models.find((m) => m.id === selected)?.id ?? models[0].id; }
 
-async function textResponse(provider: AgentProvider, model: string, goal: string, history: AgentHistoryMessage[], orgName: string) {
-  const prompt = `${SYSTEM(orgName)}\n${historyText(history)}\nUser: ${goal}`;
+async function textResponse(provider: AgentProvider, model: string, goal: string, history: AgentHistoryMessage[], orgName: string, toolContext = "") {
+  const prompt = `${SYSTEM(orgName)}\n${toolContext ? `Workspace tool results:\n${toolContext}\n` : ""}${historyText(history)}\nUser: ${goal}`;
   if (provider === "openai") {
     const key = process.env.OPENAI_API_KEY; if (!key) throw new Error("OPENAI_API_KEY is not configured.");
     const r = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, input: prompt }) });
@@ -87,15 +87,26 @@ async function textResponse(provider: AgentProvider, model: string, goal: string
   }
   if (provider === "anthropic") {
     const key = process.env.ANTHROPIC_API_KEY; if (!key) throw new Error("ANTHROPIC_API_KEY is not configured.");
-    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" }, body: JSON.stringify({ model, max_tokens: 1200, system: SYSTEM(orgName), messages: [...history.slice(-16), { role: "user", content: goal }] }) });
+    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" }, body: JSON.stringify({ model, max_tokens: 1200, system: SYSTEM(orgName), messages: [...history.slice(-16), { role: "user", content: `${toolContext ? `Workspace tool results:\n${toolContext}\n` : ""}${goal}` }] }) });
     const d = await r.json().catch(() => null); if (!r.ok) throw new Error(d?.error?.message || `Anthropic request failed: ${r.status}`); const text = Array.isArray(d?.content) ? d.content.find((x: { type?: string }) => x.type === "text")?.text : ""; return String(text || "(no answer produced)");
   }
   if (provider === "zai") {
     const key = process.env.ZAI_API_KEY; if (!key) throw new Error("ZAI_API_KEY is not configured.");
-    const r = await fetch("https://api.z.ai/api/paas/v4/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, messages: [{ role: "system", content: SYSTEM(orgName) }, ...history.slice(-16), { role: "user", content: goal }] }) });
+    const r = await fetch("https://api.z.ai/api/paas/v4/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, messages: [{ role: "system", content: SYSTEM(orgName) }, ...history.slice(-16), { role: "user", content: `${toolContext ? `Workspace tool results:\n${toolContext}\n` : ""}${goal}` }] }) });
     const d = await r.json().catch(() => null); if (!r.ok) throw new Error(d?.error?.message || `z.ai request failed: ${r.status}`); return String(d?.choices?.[0]?.message?.content || "(no answer produced)");
   }
   const ai = gemini(); const r = await ai.models.generateContent({ model, contents: prompt }); return r.text || "(no answer produced)";
+}
+
+function shouldUse(goal: string, keywords: string[]) { const s = goal.toLowerCase(); return keywords.some((k) => s.includes(k)); }
+
+async function collectRequestedTools(goal: string, ctx: { db: SupabaseClient; orgId: string; orgSlug: string }): Promise<AgentStep[]> {
+  const steps: AgentStep[] = [];
+  const add = async (tool: string, args: Record<string, unknown> = {}) => { const result = await runTool(tool, args, ctx); steps.push({ tool, args, result }); };
+  if (shouldUse(goal, ["analytics", "metric", "metrics", "performance", "conversation", "growth", "stats", "statistics"])) await add("get_analytics_summary", { days: 7 });
+  if (shouldUse(goal, ["competitor", "competitors", "rival", "rivals"])) await add("get_competitors");
+  if (shouldUse(goal, ["trend", "trends", "trending", "trend radar"])) await add("get_trend_radar");
+  return steps;
 }
 
 export async function runGrowthAgent(goal: string, ctx: { db: SupabaseClient; orgId: string; orgSlug: string; orgName: string }, options?: { provider?: AgentProvider; model?: string; history?: AgentHistoryMessage[] }): Promise<AgentRun> {
@@ -103,6 +114,8 @@ export async function runGrowthAgent(goal: string, ctx: { db: SupabaseClient; or
   const provider: AgentProvider = ["openai", "anthropic", "zai", "gemini"].includes(options?.provider ?? "") ? options!.provider! : "gemini";
   if (!catalog[provider].configured) throw new Error(`${provider} is not configured on the server.`);
   const model = chosen(provider, options?.model, catalog); const history = options?.history ?? [];
-  const answer = await textResponse(provider, model, goal, history, ctx.orgName);
-  return { goal, provider, model, steps: [], answer };
+  const steps = await collectRequestedTools(goal, ctx);
+  const toolContext = steps.length ? steps.map((s) => `Tool ${s.tool}: ${JSON.stringify(s.result)}`).join("\n") : "";
+  const answer = await textResponse(provider, model, goal, history, ctx.orgName, toolContext);
+  return { goal, provider, model, steps, answer };
 }
