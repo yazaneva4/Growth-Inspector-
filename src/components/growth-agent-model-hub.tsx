@@ -50,11 +50,14 @@ export function GrowthAgentModelHub() {
       const res = await fetch("/api/agent/conversations", { cache: "no-store" });
       if (!res.ok) throw new Error("Could not load AI conversations.");
       const data = await res.json();
-      const next = Array.isArray(data?.conversations) ? data.conversations.map(fromApi) : [];
+      const raw: unknown[] = Array.isArray(data?.conversations) ? data.conversations : [];
+      const next: Conversation[] = [];
+      for (const item of raw) if (item && typeof item === "object") next.push(fromApi(item as ApiConversation));
       if (next.length) {
         setChats(next);
-        const preferred = activeIdRef.current && next.some((c) => c.id === activeIdRef.current) ? activeIdRef.current : next[0].id;
-        if (selectFirst || !activeIdRef.current) { activeIdRef.current = preferred; setActiveId(preferred); }
+        const currentId = activeIdRef.current;
+        const preferred = currentId && next.some((conversation: Conversation) => conversation.id === currentId) ? currentId : next[0].id;
+        if (selectFirst || !currentId) { activeIdRef.current = preferred; setActiveId(preferred); }
       } else {
         const resCreate = await fetch("/api/agent/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "create" }) });
         if (!resCreate.ok) throw new Error("Could not create an AI conversation.");
