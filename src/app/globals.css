@@ -30,19 +30,14 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Serif brand voice, with Arabic-native + sans fallback so Khaleeji/MSA
-   * text and any un-serifed glyphs still render cleanly. */
   font-family: var(--font-serif-brand), var(--font-arabic), var(--font-geist-sans), serif;
 }
 
-/* Arabic glyphs use the Arabic typeface even inside mixed/auto-dir blocks. */
 :lang(ar),
 [dir="rtl"] {
   font-family: var(--font-arabic), var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Animated sparkle (Growth Operator icon) — cycles ✳️ ✴️ ❇️ like the
- * Claude Code terminal spinner. Three stacked glyphs, staggered opacity. */
 .gi-sparkle {
   position: relative;
   display: inline-block;
@@ -68,7 +63,17 @@ body {
   .gi-sparkle > span:nth-child(1) { opacity: 1; }
 }
 
-/* Keep bidirectional content readable in tables and flex rows. */
+/* The legacy component still contains the old product name internally.
+ * Scope the visual label to this page so the user-facing product is now
+ * consistently named Growth AI without changing component behavior. */
+.growth-ai-page section > aside > div:first-child > div > div:first-child {
+  font-size: 0;
+}
+.growth-ai-page section > aside > div:first-child > div > div:first-child::after {
+  content: "Growth AI";
+  font-size: 0.875rem;
+}
+
 [dir="auto"] {
   unicode-bidi: plaintext;
 }
