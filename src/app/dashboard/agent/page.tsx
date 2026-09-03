@@ -1,4 +1,3 @@
-import { GrowthAiAgentControls } from "@/components/growth-ai-agent-controls";
 import { GrowthAiChat } from "@/components/growth-ai-chat";
 import { SparkleIcon } from "@/components/sparkle-icon";
 
@@ -14,8 +13,7 @@ export default function AgentPage() {
         A real AI growth teammate with saved conversations, durable conversation memory,
         model switching, tools, live provider availability, and local/cloud execution.
       </p>
-      <div className="mt-6 space-y-4">
-        <GrowthAiAgentControls />
+      <div className="mt-6">
         <GrowthAiChat />
       </div>
     </div>
