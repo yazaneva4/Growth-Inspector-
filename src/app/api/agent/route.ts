@@ -6,6 +6,15 @@ import { AgentHistoryMessage, AgentSelection, agentProviders, isProviderTemporar
 export const maxDuration = 60;
 
 const PROVIDERS: AgentSelection[] = ["auto", "openai", "anthropic", "zai", "gemini"];
+const EXECUTION_MODES = ["local", "cloud", "auto"] as const;
+const PERMISSION_MODES = ["ask", "auto", "skip", "manual"] as const;
+
+type ExecutionMode = (typeof EXECUTION_MODES)[number];
+type PermissionMode = (typeof PERMISSION_MODES)[number];
+
+function cookieValue(req: NextRequest, name: string): string | undefined {
+  return req.cookies.get(name)?.value;
+}
 
 export async function GET() {
   const providers = await agentProviders();
@@ -18,6 +27,12 @@ export async function GET() {
   return NextResponse.json({
     providers: pickerProviders,
     auto: { id: "auto", name: "⚡ Auto", description: "Chooses the best available model for the task and falls back automatically when quota or rate limits are reached." },
+    execution: {
+      modes: EXECUTION_MODES,
+      defaultMode: "auto",
+      localHealth: "http://127.0.0.1:8787/health",
+    },
+    permissions: { modes: PERMISSION_MODES, defaultMode: "ask" },
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -28,11 +43,24 @@ export async function POST(req: NextRequest) {
 
   const provider: AgentSelection = PROVIDERS.includes(body?.provider) ? body.provider : "gemini";
   const model = typeof body?.model === "string" ? body.model : undefined;
+  const requestedMode = cookieValue(req, "growth_ai_agent_mode");
+  const executionMode: ExecutionMode = EXECUTION_MODES.includes(requestedMode as ExecutionMode) ? requestedMode as ExecutionMode : "auto";
+  const requestedPermission = cookieValue(req, "growth_ai_permission_mode");
+  const permissionMode: PermissionMode = PERMISSION_MODES.includes(requestedPermission as PermissionMode) ? requestedPermission as PermissionMode : "ask";
   const providers = await agentProviders();
+
+  if (executionMode === "local") {
+    return NextResponse.json({
+      error: "Local Agent is required for Local Mode. The local browser agent is offline or not connected to this session.",
+      localAgentRequired: true,
+      executionMode,
+      permissionMode,
+    }, { status: 409 });
+  }
 
   if (provider !== "auto" && !providers[provider].configured) {
     const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
-    return NextResponse.json({ error: `${label} is not configured on the server.`, temporaryUnavailable: false, provider, model }, { status: 503 });
+    return NextResponse.json({ error: `${label} is not configured on the server.`, temporaryUnavailable: false, provider, model, executionMode, permissionMode }, { status: 503 });
   }
 
   const rawHistory = Array.isArray(body?.history) ? body.history : [];
@@ -52,14 +80,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const run = await runGrowthAgent(goal, { db, orgId: org.id, orgSlug: ctx.orgSlug, orgName: org.name }, { provider, model, history });
-    return NextResponse.json(run);
+    return NextResponse.json({ ...run, executionMode, permissionMode });
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : "agent failed";
     const temporaryUnavailable = isProviderTemporarilyUnavailable(err);
     const label = provider === "auto" || model === "auto" ? "Auto mode" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
     return NextResponse.json(
-      { error: temporaryUnavailable ? `${label} is temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model },
+      { error: temporaryUnavailable ? `${label} is temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model, executionMode, permissionMode },
       { status: temporaryUnavailable ? 429 : 500 },
     );
   }
