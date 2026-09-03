@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
-import { AgentHistoryMessage, AgentProvider, agentProviders, isProviderTemporarilyUnavailable, runGrowthAgent } from "@/lib/ai/agent";
+import { AgentHistoryMessage, AgentSelection, agentProviders, isProviderTemporarilyUnavailable, runGrowthAgent } from "@/lib/ai/agent";
 
 export const maxDuration = 60;
 
-const PROVIDERS: AgentProvider[] = ["openai", "anthropic", "zai", "gemini"];
+const PROVIDERS: AgentSelection[] = ["auto", "openai", "anthropic", "zai", "gemini"];
 
 export async function GET() {
-  return NextResponse.json({ providers: await agentProviders() }, { headers: { "Cache-Control": "no-store" } });
+  const providers = await agentProviders();
+  return NextResponse.json({
+    providers,
+    auto: { id: "auto", name: "⚡ Auto", description: "Chooses the best available model and falls back automatically when a model is temporarily unavailable." },
+  }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
@@ -16,10 +20,11 @@ export async function POST(req: NextRequest) {
   const goal: string | undefined = body?.goal;
   if (!goal?.trim()) return NextResponse.json({ error: "goal required" }, { status: 400 });
 
-  const provider: AgentProvider = PROVIDERS.includes(body?.provider) ? body.provider : "gemini";
+  const provider: AgentSelection = PROVIDERS.includes(body?.provider) ? body.provider : "gemini";
   const model = typeof body?.model === "string" ? body.model : undefined;
   const providers = await agentProviders();
-  if (!providers[provider].configured) {
+
+  if (provider !== "auto" && !providers[provider].configured) {
     const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
     return NextResponse.json({ error: `${label} is not configured on the server.`, temporaryUnavailable: false, provider, model }, { status: 503 });
   }
@@ -46,9 +51,9 @@ export async function POST(req: NextRequest) {
     console.error(err);
     const message = err instanceof Error ? err.message : "agent failed";
     const temporaryUnavailable = isProviderTemporarilyUnavailable(err);
-    const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
+    const label = provider === "auto" ? "The selected AI models" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
     return NextResponse.json(
-      { error: temporaryUnavailable ? `${label} is temporarily unavailable because this model's quota or rate limit was reached.` : message, temporaryUnavailable, provider, model },
+      { error: temporaryUnavailable ? `${label} are temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model },
       { status: temporaryUnavailable ? 429 : 500 },
     );
   }
