@@ -18,6 +18,10 @@ function isPermission(value: string | null): value is PermissionMode {
   return value === "ask" || value === "auto" || value === "skip" || value === "manual";
 }
 
+function persistCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function GrowthAiAgentControls() {
   const [mode, setMode] = useState<AgentMode>("auto");
   const [permission, setPermission] = useState<PermissionMode>("ask");
@@ -43,8 +47,12 @@ export function GrowthAiAgentControls() {
   useEffect(() => {
     const savedMode = localStorage.getItem(MODE_KEY);
     const savedPermission = localStorage.getItem(PERMISSION_KEY);
-    if (isMode(savedMode)) setMode(savedMode);
-    if (isPermission(savedPermission)) setPermission(savedPermission);
+    const initialMode = isMode(savedMode) ? savedMode : "auto";
+    const initialPermission = isPermission(savedPermission) ? savedPermission : "ask";
+    setMode(initialMode);
+    setPermission(initialPermission);
+    persistCookie("growth_ai_agent_mode", initialMode);
+    persistCookie("growth_ai_permission_mode", initialPermission);
     void checkLocalAgent();
     const interval = window.setInterval(() => void checkLocalAgent(), 5000);
     return () => window.clearInterval(interval);
@@ -53,12 +61,14 @@ export function GrowthAiAgentControls() {
   function changeMode(next: AgentMode) {
     setMode(next);
     localStorage.setItem(MODE_KEY, next);
+    persistCookie("growth_ai_agent_mode", next);
     window.dispatchEvent(new CustomEvent("growth-ai-agent-mode-change", { detail: { mode: next } }));
   }
 
   function changePermission(next: PermissionMode) {
     setPermission(next);
     localStorage.setItem(PERMISSION_KEY, next);
+    persistCookie("growth_ai_permission_mode", next);
     window.dispatchEvent(new CustomEvent("growth-ai-permission-mode-change", { detail: { permission: next } }));
   }
 
@@ -76,12 +86,7 @@ export function GrowthAiAgentControls() {
               ["cloud", "☁️ Cloud"],
               ["auto", "⚡ Auto"],
             ] as const).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => changeMode(value)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${mode === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
-              >
+              <button key={value} type="button" onClick={() => changeMode(value)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${mode === value ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>
                 {label}
               </button>
             ))}
@@ -90,20 +95,12 @@ export function GrowthAiAgentControls() {
             <span className={`h-2 w-2 rounded-full ${statusClass}`} />
             {statusText}
           </span>
-          {mode === "auto" && (
-            <span className="text-[11px] text-slate-400">
-              Auto chooses the stronger available environment for each task.
-            </span>
-          )}
+          {mode === "auto" && <span className="text-[11px] text-slate-400">Auto chooses the stronger available environment for each task.</span>}
         </div>
 
         <label className="flex items-center gap-2 text-xs text-slate-500">
           <span className="font-semibold">Permissions</span>
-          <select
-            value={permission}
-            onChange={(event) => changePermission(event.target.value as PermissionMode)}
-            className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none"
-          >
+          <select value={permission} onChange={(event) => changePermission(event.target.value as PermissionMode)} className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none">
             <option value="ask">Ask</option>
             <option value="auto">Auto</option>
             <option value="skip">Skip routine</option>
@@ -111,16 +108,8 @@ export function GrowthAiAgentControls() {
           </select>
         </label>
       </div>
-      {mode === "local" && localStatus === "offline" && (
-        <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-          Local Agent is offline. Start the Growth AI local agent on this computer, then retry. Local Mode will not silently switch to Cloud.
-        </div>
-      )}
-      {mode === "auto" && localStatus === "offline" && (
-        <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          Local Agent is offline. Auto can use Cloud until the local agent reconnects.
-        </div>
-      )}
+      {mode === "local" && localStatus === "offline" && <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">Local Agent is offline. Start the Growth AI local agent on this computer, then retry. Local Mode will not silently switch to Cloud.</div>}
+      {mode === "auto" && localStatus === "offline" && <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">Local Agent is offline. Auto can use Cloud until the local agent reconnects.</div>}
     </div>
   );
 }
