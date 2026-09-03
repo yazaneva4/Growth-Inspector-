@@ -1,22 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/logo";
 
 type Mode = "signin" | "signup";
-
-// ?new=1 (from "Create another account") opens straight on the signup tab.
-function initialMode(): Mode {
-  if (typeof window !== "undefined") {
-    if (new URLSearchParams(window.location.search).get("new") === "1") {
-      return "signup";
-    }
-  }
-  return "signin";
-}
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true";
 const REMEMBER_KEY = "gi_remember_me";
@@ -31,27 +21,27 @@ function rememberedEmail(): string {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>(initialMode);
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState(rememberedEmail);
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [rememberMe, setRememberMe] = useState(
     () => typeof window !== "undefined" && localStorage.getItem(REMEMBER_KEY) === "1",
   );
-  const rememberCheckboxRef = useRef<HTMLInputElement>(null);
-  // React's controlled-checkbox hydration doesn't always sync the DOM
-  // .checked property to the initial state on mount — force it once so a
-  // remembered "checked" box doesn't render as visually unchecked.
-  useEffect(() => {
-    if (rememberCheckboxRef.current) rememberCheckboxRef.current.checked = rememberMe;
-  }, [rememberMe]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!codeSent) return;
+    const input = document.getElementById("growth-ai-code") as HTMLInputElement | null;
+    input?.focus();
+  }, [codeSent]);
+
   function persistRememberedEmail() {
     if (rememberMe) {
       localStorage.setItem(REMEMBER_KEY, "1");
-      localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
+      localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim());
     } else {
       localStorage.removeItem(REMEMBER_KEY);
       localStorage.removeItem(REMEMBERED_EMAIL_KEY);
@@ -62,74 +52,62 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback?next=/dashboard/inbox` },
     });
-    if (error) {
+    if (authError) {
       setBusy(false);
-      if (/provider is not enabled/i.test(error.message)) {
-        setError(
-          "Google sign-in isn't enabled yet. Add Google in Supabase → Authentication → Providers, or use email below.",
-        );
-      } else {
-        setError(error.message);
-      }
+      setError(authError.message);
     }
-    // On success the browser redirects to Google — no need to reset busy.
   }
 
   function friendlyError(message: string): string {
-    if (/rate limit/i.test(message)) {
-      return "Too many attempts right now — please wait a minute and try again.";
-    }
-    if (/already.*registered|already.*exists/i.test(message)) {
-      return "An account with this email already exists — sign in instead.";
-    }
+    if (/rate limit/i.test(message)) return "Too many attempts right now — please wait a minute and try again.";
+    if (/invalid.*otp|otp.*expired|token.*expired/i.test(message)) return "That code is invalid or expired. Request a new code and try again.";
+    if (/not found|user.*not.*exist/i.test(message) && mode === "signin") return "No account was found for this email. Create an account first.";
     return message;
   }
 
-  async function submit(e: React.FormEvent) {
+  async function requestCode() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) throw new Error("Enter your email address first.");
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: mode === "signup",
+        emailRedirectTo: `${location.origin}/auth/callback?next=/dashboard/inbox`,
+      },
+    });
+    if (authError) throw authError;
+    setCodeSent(true);
+    setNotice(`We sent a 6-digit code to ${normalizedEmail}.`);
+  }
+
+  async function verifyCode() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^\d{6}$/.test(code.trim())) throw new Error("Enter the 6-digit code from your email.");
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token: code.trim(),
+      type: "email",
+    });
+    if (authError) throw authError;
+    persistRememberedEmail();
+    router.push("/dashboard/inbox");
+    router.refresh();
+  }
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setNotice(null);
     setBusy(true);
-    const supabase = createClient();
     try {
-      if (mode === "signup") {
-        const { data: signupData, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${location.origin}/auth/callback` },
-        });
-        if (error) throw error;
-        if (signupData.session) {
-          // Email confirmation is off in Supabase → straight into the app.
-          persistRememberedEmail();
-          router.push("/dashboard/inbox");
-          router.refresh();
-        } else {
-          setNotice(
-            "Account created. Check your email for a confirmation link, then sign in.",
-          );
-          setMode("signin");
-        }
-      } else {
-        let { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error && /email not confirmed/i.test(error.message)) {
-          // Self-heal any account stuck unconfirmed, then retry once.
-          await fetch("/api/auth/force-confirm", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          }).catch(() => {});
-          ({ error } = await supabase.auth.signInWithPassword({ email, password }));
-        }
-        if (error) throw error;
-        persistRememberedEmail();
-        router.push("/dashboard/inbox");
-        router.refresh();
-      }
+      if (codeSent) await verifyCode();
+      else await requestCode();
     } catch (err) {
       setError(friendlyError(err instanceof Error ? err.message : "Authentication failed"));
     } finally {
@@ -140,142 +118,43 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-950">
       <div className="w-full max-w-sm space-y-8">
-        {/* Logo */}
-        <div className="flex justify-center">
-          <Logo variant="light" size={56} />
-        </div>
-
-        {/* Greeting */}
+        <div className="flex justify-center"><Logo variant="light" size={56} /></div>
         <div className="text-center">
-          <h1 className="text-xl font-bold text-slate-950">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {mode === "signin"
-              ? "Sign in to your Growth Inspector workspace"
-              : "Start your Growth Inspector workspace"}
-          </p>
+          <h1 className="text-xl font-bold">{mode === "signin" ? "Welcome back" : "Create your account"}</h1>
+          <p className="mt-1 text-sm text-slate-500">{codeSent ? "Enter the code we emailed you" : "Sign in securely with an email code"}</p>
         </div>
 
-        {/* Google sign-in — only shown once the provider is actually enabled
-            (set NEXT_PUBLIC_GOOGLE_ENABLED=true after configuring Google in
-            Supabase) so users never get sent to a broken authorize page. */}
-        {googleEnabled && (
+        {googleEnabled && !codeSent && (
           <>
-            <button
-              onClick={signInWithGoogle}
-              disabled={busy}
-              className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.4 1.1 7.3 2.8l5.7-5.7C33.6 6.1 29 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z" />
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c2.8 0 5.4 1.1 7.3 2.8l5.7-5.7C33.6 6.1 29 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 34.9 26.7 36 24 36c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 39.6 16.2 44 24 44z" />
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C39.9 36.5 44 31 44 24c0-1.2-.1-2.3-.4-3.5z" />
-              </svg>
+            <button onClick={signInWithGoogle} disabled={busy} className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
               Continue with Google
             </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 text-xs text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" />
-              or with email
-              <span className="h-px flex-1 bg-slate-200" />
-            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />or with email<span className="h-px flex-1 bg-slate-200" /></div>
           </>
         )}
 
-        {/* Mode tabs */}
-        <div className="flex rounded-lg border border-slate-300 text-sm bg-slate-50">
-          {(["signin", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setMode(m);
-                setError(null);
-                setNotice(null);
-              }}
-              className={`flex-1 rounded-md px-3 py-2.5 font-medium transition-colors ${
-                mode === m
-                  ? "bg-white text-slate-950 border border-slate-200"
-                  : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              {m === "signin" ? "Sign in" : "Create account"}
-            </button>
-          ))}
-        </div>
+        {!codeSent && (
+          <div className="flex rounded-lg border border-slate-300 bg-slate-50 text-sm">
+            {(["signin", "signup"] as const).map((m) => (
+              <button key={m} onClick={() => { setMode(m); setError(null); setNotice(null); }} className={`flex-1 rounded-md px-3 py-2.5 font-medium ${mode === m ? "border border-slate-200 bg-white text-slate-950" : "text-slate-600"}`}>
+                {m === "signin" ? "Sign in" : "Create account"}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Form */}
         <form onSubmit={submit} className="space-y-4">
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.sa"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-          />
-          <input
-            type="password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (min 6 chars)"
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-          />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              ref={rememberCheckboxRef}
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 accent-emerald-500"
-            />
-            Remember me
-          </label>
-          <button
-            type="submit"
-            disabled={busy}
-            className="w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors"
-          >
-            {busy
-              ? "…"
-              : mode === "signin"
-                ? "Sign in"
-                : "Create account"}
-          </button>
-
+          <input type="email" required disabled={codeSent} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.sa" className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50" />
+          {codeSent && <input id="growth-ai-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code" className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-lg tracking-[0.35em] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />}
+          {!codeSent && <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 rounded border-slate-300 accent-emerald-500" />Remember me</label>}
+          <button type="submit" disabled={busy} className="w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">{busy ? "…" : codeSent ? "Verify code" : "Send code"}</button>
+          {codeSent && <button type="button" disabled={busy} onClick={() => { setCodeSent(false); setCode(""); setNotice(null); setError(null); }} className="w-full text-xs text-slate-500 hover:text-slate-900">Use a different email</button>}
           {error && <p className="text-xs text-red-600">{error}</p>}
           {notice && <p className="text-xs text-emerald-600">{notice}</p>}
         </form>
 
-        {/* Guest login — get straight in with no account (demo workspace) */}
-        <Link
-          href="/dashboard/inbox"
-          className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-        >
-          Continue as guest
-        </Link>
-
-        {/* Back link */}
-        <div className="space-y-2 text-center">
-          <Link href="/" className="block text-xs text-slate-600 hover:text-slate-950">
-            ← Back home
-          </Link>
-          <p className="text-[11px] text-slate-400">
-            By continuing, you agree to our{" "}
-            <Link href="/terms" className="underline hover:text-slate-600">
-              Terms
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="underline hover:text-slate-600">
-              Privacy Policy
-            </Link>
-            .
-          </p>
-        </div>
+        <Link href="/dashboard/inbox" className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50">Continue as guest</Link>
+        <div className="space-y-2 text-center"><Link href="/" className="block text-xs text-slate-600 hover:text-slate-950">← Back home</Link><p className="text-[11px] text-slate-400">By continuing, you agree to our <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.</p></div>
       </div>
     </main>
   );
