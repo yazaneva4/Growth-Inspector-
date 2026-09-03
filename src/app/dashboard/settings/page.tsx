@@ -3,6 +3,7 @@ import { HARD_BLOCK_TOPICS } from "@/lib/ai/responder";
 import { getCurrentContext } from "@/lib/auth";
 import { createClient, createPublicClient } from "@/lib/supabase/server";
 import { SettingsForm } from "@/components/settings-form";
+import { GrowthAiAgentControls } from "@/components/growth-ai-agent-controls";
 import { ConnectedAccounts } from "@/components/connected-accounts";
 import { BackupContacts } from "@/components/backup-contacts";
 import { ProfileNameForm } from "@/components/profile-name-form";
@@ -41,10 +42,10 @@ export default async function SettingsPage() {
   const contacts = (contactsRes.data ?? []) as Array<{ id: string; name: string; phone: string }>;
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-3xl">
       <h1 className="text-2xl font-bold">Settings</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Control how Growth Inspector and Growth AI behave for this workspace. Brand voice, AI instructions, connected accounts, and safety guardrails live here.
+        Control how Growth Inspector and Growth AI behave for this workspace. Workspace preferences, AI instructions, agent execution, permissions, connected accounts, and safety guardrails live here.
         {ctx.isDemo && <span className="text-amber-400"> Sign in to edit your workspace.</span>}
       </p>
 
@@ -55,6 +56,12 @@ export default async function SettingsPage() {
           <div className="mt-4"><ProfileNameForm initialName={ctx.name ?? ""} /></div>
         </div>
       )}
+
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-900">Growth AI behavior</h2>
+        <p className="mt-1 text-xs text-slate-500">Choose where Growth AI runs and how permission prompts are handled. These controls apply to Growth AI wherever you use it.</p>
+        <div className="mt-4"><GrowthAiAgentControls /></div>
+      </div>
 
       <div className="mt-6">
         <SettingsForm initial={initial} canSave={!ctx.isDemo} />
