@@ -7,7 +7,7 @@ export default function AgentPage() {
   return (
     <div className="max-w-6xl">
       <h1 className="flex items-center gap-2 text-2xl font-bold">
-        Growth Operator <SparkleIcon className="text-2xl" />
+        Growth AI <SparkleIcon className="text-2xl" />
       </h1>
       <p className="mt-1 text-sm text-slate-500">
         A real AI growth teammate with conversations, tools, model selection,
