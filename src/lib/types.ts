@@ -35,6 +35,8 @@ export interface BrandVoice {
   examples?: { customer: string; reply: string }[];
   /** Business facts the AI may use (hours, returns policy, etc.). */
   facts?: string;
+  /** Workspace-specific instructions and feedback for Growth AI. */
+  instructions?: string;
 }
 
 export interface Organization {
