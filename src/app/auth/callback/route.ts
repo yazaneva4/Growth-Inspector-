@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-/** Exchanges the email-confirmation / OAuth code for a session, then lands
- *  the user on the dashboard. */
+/** Completes Growth Inspector email/OAuth authentication and always redirects back to the app. */
 export async function GET(req: NextRequest) {
+  const supabase = await createClient();
   const code = req.nextUrl.searchParams.get("code");
+  const tokenHash = req.nextUrl.searchParams.get("token_hash");
+  const type = req.nextUrl.searchParams.get("type");
+
   if (code) {
-    const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) console.error("Growth Inspector auth callback:", error.message);
+  } else if (tokenHash && (type === "magiclink" || type === "email" || type === "recovery")) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as "magiclink" | "email" | "recovery" });
+    if (error) console.error("Growth Inspector email callback:", error.message);
   }
-  // Honor ?next= (defaults to the inbox), but only allow same-app relative paths.
+
   const next = req.nextUrl.searchParams.get("next");
-  const dest = next && next.startsWith("/") ? next : "/dashboard/inbox";
+  const dest = next && /^\/[A-Za-z0-9_\-./?=&%]*$/.test(next) ? next : "/dashboard/inbox";
   return NextResponse.redirect(new URL(dest, req.url));
 }
