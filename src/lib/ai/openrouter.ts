@@ -8,7 +8,7 @@
 
 /** Tier A — tried right after Claude fails, before Gemini. */
 export const OPENROUTER_MODEL_A =
-  process.env.OPENROUTER_MODEL_A?.trim() || "openai/gpt-oss-120b:free";
+  process.env.OPENROUTER_MODEL_A?.trim() || "openai/gpt-oss-20b:free";
 
 /** Tier B — final fallback, tried right after Gemini fails. */
 export const OPENROUTER_MODEL_B =
@@ -51,7 +51,6 @@ export async function openrouterChatJSON<T>(opts: {
   const content: string | undefined = data.choices?.[0]?.message?.content;
   if (!content) throw new Error(`OpenRouter (${opts.model}) returned no content`);
 
-  // Some models wrap JSON in prose or ```json fences — extract the object.
   const match = content.match(/\{[\s\S]*\}/);
   return JSON.parse(match ? match[0] : content) as T;
 }
