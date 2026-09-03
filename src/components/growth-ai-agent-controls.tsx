@@ -103,11 +103,12 @@ export function GrowthAiAgentControls() {
           <select value={permission} onChange={(event) => changePermission(event.target.value as PermissionMode)} className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none">
             <option value="ask">Ask</option>
             <option value="auto">Auto</option>
-            <option value="skip">Skip routine</option>
+            <option value="skip">Skip all permissions</option>
             <option value="manual">Manual</option>
           </select>
         </label>
       </div>
+      <p className="mt-2 text-[11px] text-slate-400">Skip all permissions disables Growth AI permission prompts. It does not bypass the app's safety rules.</p>
       {mode === "local" && localStatus === "offline" && <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">Local Agent is offline. Start the Growth AI local agent on this computer, then retry. Local Mode will not silently switch to Cloud.</div>}
       {mode === "auto" && localStatus === "offline" && <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">Local Agent is offline. Auto can use Cloud until the local agent reconnects.</div>}
     </div>
