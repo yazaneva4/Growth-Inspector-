@@ -1,0 +1,80 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { sendEmail } from "@/lib/email/send";
+
+export const runtime = "nodejs";
+
+function secretBytes() {
+  const raw = process.env.AUTH_EMAIL_HOOK_SECRET;
+  if (!raw) throw new Error("AUTH_EMAIL_HOOK_SECRET is not configured");
+  const encoded = raw.replace(/^v1,whsec_/, "");
+  return Buffer.from(encoded, "base64");
+}
+
+function verifySignature(body: string, headers: Headers) {
+  const secret = secretBytes();
+  const id = headers.get("webhook-id");
+  const timestamp = headers.get("webhook-timestamp");
+  const signatures = headers.get("webhook-signature");
+  if (!id || !timestamp || !signatures) return false;
+
+  const timestampNumber = Number(timestamp);
+  if (!Number.isFinite(timestampNumber) || Math.abs(Date.now() / 1000 - timestampNumber) > 300) return false;
+
+  const signed = `${id}.${timestamp}.${body}`;
+  const expected = createHmac("sha256", secret).update(signed).digest("base64");
+  return signatures.split(" ").some((value) => {
+    const supplied = value.replace(/^v1,/, "");
+    const a = Buffer.from(supplied);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  });
+}
+
+function emailContent(action: string, token: string, tokenHash: string, redirectTo: string) {
+  const safeRedirect = redirectTo || `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/dashboard/inbox`;
+  const link = tokenHash
+    ? `${safeRedirect.split("#")[0]}?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(action === "signup" ? "email" : action)}`
+    : "";
+
+  const labels: Record<string, string> = {
+    signup: "Confirm your Growth Inspector account",
+    magiclink: "Your Growth Inspector sign-in code",
+    recovery: "Reset your Growth Inspector password",
+    invite: "Your Growth Inspector invitation",
+    email_change: "Confirm your new Growth Inspector email",
+    reauthentication: "Your Growth Inspector verification code",
+  };
+  const subject = labels[action] ?? "Your Growth Inspector verification code";
+  const text = token
+    ? `${subject}\n\nYour verification code is: ${token}\n\nThis code was requested for your Growth Inspector account. If you did not request it, you can ignore this email.`
+    : `${subject}\n\nUse the secure link below to continue.\n${link}`;
+  const html = token
+    ? `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h2>${subject}</h2><p>Your verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px">${token}</p>${link ? `<p><a href="${link}">Continue securely</a></p>` : ""}<p style="color:#64748b;font-size:13px">If you did not request this, you can ignore this email.</p></div>`
+    : `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h2>${subject}</h2><p><a href="${link}">Continue securely</a></p><p style="color:#64748b;font-size:13px">If you did not request this, you can ignore this email.</p></div>`;
+  return { subject, text, html };
+}
+
+export async function POST(request: Request) {
+  const body = await request.text();
+  if (!verifySignature(body, request.headers)) {
+    return Response.json({ error: "Invalid webhook signature" }, { status: 401 });
+  }
+
+  try {
+    const payload = JSON.parse(body) as {
+      user?: { email?: string };
+      email_data?: { token?: string; token_hash?: string; email_action_type?: string; redirect_to?: string };
+    };
+    const to = payload.user?.email?.trim();
+    const data = payload.email_data;
+    if (!to || !data?.email_action_type) return Response.json({ error: "Invalid email hook payload" }, { status: 400 });
+
+    const content = emailContent(data.email_action_type, data.token ?? "", data.token_hash ?? "", data.redirect_to ?? "");
+    const sent = await sendEmail({ to, subject: content.subject, text: content.text, html: content.html });
+    if (!sent) return Response.json({ error: "App email transport is not configured" }, { status: 503 });
+    return Response.json({});
+  } catch (error) {
+    console.error("[auth-email-hook] failed", error);
+    return Response.json({ error: "Email delivery failed" }, { status: 500 });
+  }
+}
