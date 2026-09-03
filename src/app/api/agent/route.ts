@@ -27,12 +27,8 @@ export async function GET() {
   return NextResponse.json({
     providers: pickerProviders,
     auto: { id: "auto", name: "⚡ Auto", description: "Chooses the best available model for the task and falls back automatically when quota or rate limits are reached." },
-    execution: {
-      modes: EXECUTION_MODES,
-      defaultMode: "auto",
-      localHealth: "http://127.0.0.1:8787/health",
-    },
-    permissions: { modes: PERMISSION_MODES, defaultMode: "ask" },
+    execution: { modes: EXECUTION_MODES, defaultMode: "auto", localHealth: "http://127.0.0.1:8787/health" },
+    permissions: { modes: PERMISSION_MODES, defaultMode: "ask", skipDescription: "Skip all permissions disables permission prompts for the agent." },
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -50,12 +46,7 @@ export async function POST(req: NextRequest) {
   const providers = await agentProviders();
 
   if (executionMode === "local") {
-    return NextResponse.json({
-      error: "Local Agent is required for Local Mode. The local browser agent is offline or not connected to this session.",
-      localAgentRequired: true,
-      executionMode,
-      permissionMode,
-    }, { status: 409 });
+    return NextResponse.json({ error: "Local Agent is required for Local Mode. The local browser agent is offline or not connected to this session.", localAgentRequired: true, executionMode, permissionMode }, { status: 409 });
   }
 
   if (provider !== "auto" && !providers[provider].configured) {
@@ -75,20 +66,23 @@ export async function POST(req: NextRequest) {
 
   const ctx = await getCurrentContext();
   const db = ctx.isDemo ? createPublicClient() : await createClient();
-  const { data: org } = await db.from("organizations").select("id, name").eq("slug", ctx.orgSlug).maybeSingle();
+  const { data: org } = await db.from("organizations").select("id, name, brand_voice").eq("slug", ctx.orgSlug).maybeSingle();
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
 
+  const brandVoice = org.brand_voice && typeof org.brand_voice === "object" ? org.brand_voice as { instructions?: unknown } : {};
+  const instructions = typeof brandVoice.instructions === "string" ? brandVoice.instructions.trim().slice(0, 8000) : "";
+  const goalForAgent = instructions
+    ? `${goal.trim()}\n\nWorkspace Growth AI instructions (follow these as workspace preferences):\n${instructions}`
+    : goal.trim();
+
   try {
-    const run = await runGrowthAgent(goal, { db, orgId: org.id, orgSlug: ctx.orgSlug, orgName: org.name }, { provider, model, history });
+    const run = await runGrowthAgent(goalForAgent, { db, orgId: org.id, orgSlug: ctx.orgSlug, orgName: org.name }, { provider, model, history });
     return NextResponse.json({ ...run, executionMode, permissionMode });
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : "agent failed";
     const temporaryUnavailable = isProviderTemporarilyUnavailable(err);
     const label = provider === "auto" || model === "auto" ? "Auto mode" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
-    return NextResponse.json(
-      { error: temporaryUnavailable ? `${label} is temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model, executionMode, permissionMode },
-      { status: temporaryUnavailable ? 429 : 500 },
-    );
+    return NextResponse.json({ error: temporaryUnavailable ? `${label} is temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model, executionMode, permissionMode }, { status: temporaryUnavailable ? 429 : 500 });
   }
 }
