@@ -9,9 +9,15 @@ const PROVIDERS: AgentSelection[] = ["auto", "openai", "anthropic", "zai", "gemi
 
 export async function GET() {
   const providers = await agentProviders();
+  const pickerProviders = Object.fromEntries(
+    Object.entries(providers).map(([provider, state]) => [
+      provider,
+      { ...state, models: [{ id: "auto", name: "⚡ Auto — best available" }, ...state.models.filter((model) => model.id !== "auto")] },
+    ]),
+  );
   return NextResponse.json({
-    providers,
-    auto: { id: "auto", name: "⚡ Auto", description: "Chooses the best available model and falls back automatically when a model is temporarily unavailable." },
+    providers: pickerProviders,
+    auto: { id: "auto", name: "⚡ Auto", description: "Chooses the best available model for the task and falls back automatically when quota or rate limits are reached." },
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -51,9 +57,9 @@ export async function POST(req: NextRequest) {
     console.error(err);
     const message = err instanceof Error ? err.message : "agent failed";
     const temporaryUnavailable = isProviderTemporarilyUnavailable(err);
-    const label = provider === "auto" ? "The selected AI models" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
+    const label = provider === "auto" || model === "auto" ? "Auto mode" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
     return NextResponse.json(
-      { error: temporaryUnavailable ? `${label} are temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model },
+      { error: temporaryUnavailable ? `${label} is temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model },
       { status: temporaryUnavailable ? 429 : 500 },
     );
   }
