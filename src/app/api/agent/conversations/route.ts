@@ -4,17 +4,17 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 async function getDbAndOrg() {
   const ctx = await getCurrentContext();
-  // The public demo has no auth.uid(), so only its fixed demo workspace uses
-  // the server-only client. Authenticated workspaces stay behind RLS.
   const db = ctx.isDemo ? createServiceClient() : await createClient();
   const { data: org } = await db.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
   return { db, org };
 }
 
+const CONVERSATION_FIELDS = "id,title,archived,memory_enabled,created_at,updated_at";
+
 export async function GET() {
   const { db, org } = await getDbAndOrg();
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
-  const { data, error } = await db.from("ai_operator_conversations").select("id,title,archived,created_at,updated_at,ai_operator_messages(id,role,content,provider,model,steps,created_at)").eq("org_id", org.id).order("updated_at", { ascending: false });
+  const { data, error } = await db.from("ai_operator_conversations").select(`${CONVERSATION_FIELDS},ai_operator_messages(id,role,content,provider,model,steps,created_at)`).eq("org_id", org.id).order("updated_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ conversations: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   if (action === "create") {
     const title = typeof body?.title === "string" && body.title.trim() ? body.title.trim().slice(0, 80) : "New conversation";
-    const { data, error } = await db.from("ai_operator_conversations").insert({ org_id: org.id, title }).select("id,title,archived,created_at,updated_at").single();
+    const { data, error } = await db.from("ai_operator_conversations").insert({ org_id: org.id, title, memory_enabled: body?.memoryEnabled !== false }).select(CONVERSATION_FIELDS).single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ conversation: data });
   }
@@ -51,8 +51,9 @@ export async function POST(req: NextRequest) {
     const patch: Record<string, unknown> = {};
     if (typeof body?.title === "string" && body.title.trim()) patch.title = body.title.trim().slice(0, 80);
     if (typeof body?.archived === "boolean") patch.archived = body.archived;
+    if (typeof body?.memoryEnabled === "boolean") patch.memory_enabled = body.memoryEnabled;
     if (!conversationId || !Object.keys(patch).length) return NextResponse.json({ error: "invalid update" }, { status: 400 });
-    const { data, error } = await db.from("ai_operator_conversations").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", conversationId).eq("org_id", org.id).select("id,title,archived,created_at,updated_at").single();
+    const { data, error } = await db.from("ai_operator_conversations").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", conversationId).eq("org_id", org.id).select(CONVERSATION_FIELDS).single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ conversation: data });
   }
