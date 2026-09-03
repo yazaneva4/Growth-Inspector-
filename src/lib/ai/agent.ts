@@ -6,11 +6,12 @@ import { generateTrendRadar } from "@/lib/ai/trends";
 import { sendEmail } from "@/lib/email/send";
 
 export type AgentProvider = "openai" | "anthropic" | "zai" | "gemini";
+export type AgentSelection = AgentProvider | "auto";
 export type AgentModel = { id: string; name: string };
 export type AgentProviderState = { configured: boolean; models: AgentModel[] };
 export type AgentHistoryMessage = { role: "user" | "assistant"; content: string };
 export type AgentStep = { tool: string; args: Record<string, unknown>; result: unknown };
-export type AgentRun = { goal: string; provider: AgentProvider; model: string; steps: AgentStep[]; answer: string };
+export type AgentRun = { goal: string; provider: AgentProvider; model: string; steps: AgentStep[]; answer: string; auto?: boolean; fallbackCount?: number };
 
 const ZAI_MODELS: AgentModel[] = [
   ["glm-5.1", "GLM-5.1"], ["glm-5", "GLM-5"], ["glm-5-turbo", "GLM-5 Turbo"], ["glm-4.7", "GLM-4.7"],
@@ -26,8 +27,8 @@ export const TOOL_DECLARATIONS = [
   { name: "send_whatsapp", description: "Prepare a WhatsApp message and return a wa.me link. Never invent a phone number.", parameters: { type: "object", properties: { phone: { type: "string" }, message: { type: "string" } }, required: ["phone", "message"] } },
 ] as const;
 
-const SYSTEM = (org: string) => `You are Growth Operator for "${org}". Have a natural multi-turn conversation, use workspace tool results when provided, cite real numbers, and only take actions when explicitly requested.`;
-const historyText = (history: AgentHistoryMessage[]) => history.slice(-16).map((m) => `${m.role === "user" ? "User" : "Growth Operator"}: ${m.content}`).join("\n");
+const SYSTEM = (org: string) => `You are Growth AI for "${org}". Have a natural multi-turn conversation, use workspace tool results when provided, cite real numbers, and only take actions when explicitly requested.`;
+const historyText = (history: AgentHistoryMessage[]) => history.slice(-16).map((m) => `${m.role === "user" ? "User" : "Growth AI"}: ${m.content}`).join("\n");
 
 function quotaLike(message: string) {
   const s = message.toLowerCase();
@@ -76,7 +77,41 @@ async function buildCatalog(): Promise<Record<AgentProvider, AgentProviderState>
   return value;
 }
 export async function agentProviders() { return buildCatalog(); }
-function chosen(provider: AgentProvider, selected: string | undefined, catalog: Record<AgentProvider, AgentProviderState>) { const models = catalog[provider].models; return models.find((m) => m.id === selected)?.id ?? models[0].id; }
+
+function taskScores(goal: string, provider: AgentProvider, model: string) {
+  const s = goal.toLowerCase();
+  const coding = /\b(code|coding|debug|bug|typescript|javascript|python|sql|api|repository|repo|github|program)\b/.test(s);
+  const analytics = /\b(analytics|metric|metrics|performance|statistics|stats|growth|trend|data|conversion|funnel)\b/.test(s);
+  const reasoning = /\b(reason|reasoning|analy[sz]e|strategy|compare|why|architecture|plan|complex|investigate)\b/.test(s);
+  const quick = s.length < 90 && /\b(what|when|where|who|how much|status|hello|hi)\b/.test(s);
+  const m = model.toLowerCase();
+  let score = 0;
+  if (coding) score += /gpt|claude|glm/.test(m) ? 45 : 30;
+  if (analytics) score += /gpt|claude|gemini|glm/.test(m) ? 38 : 28;
+  if (reasoning) score += /opus|gpt-5|glm-5|pro/.test(m) ? 55 : 35;
+  if (quick) score += /flash|haiku|mini|air/.test(m) ? 42 : 20;
+  if (!coding && !analytics && !reasoning && !quick) score += /gpt-5|opus|pro/.test(m) ? 45 : 30;
+  if (provider === "anthropic") score += reasoning || coding ? 8 : 2;
+  if (provider === "openai") score += coding || reasoning ? 7 : 3;
+  if (provider === "gemini") score += quick || analytics ? 7 : 2;
+  if (provider === "zai") score += coding ? 5 : 1;
+  if (/flash|haiku|air/.test(m)) score += 3;
+  return score;
+}
+
+function autoCandidates(goal: string, catalog: Record<AgentProvider, AgentProviderState>) {
+  const candidates: Array<{ provider: AgentProvider; model: string; score: number }> = [];
+  for (const provider of ["openai", "anthropic", "zai", "gemini"] as AgentProvider[]) {
+    if (!catalog[provider].configured) continue;
+    for (const model of catalog[provider].models) candidates.push({ provider, model: model.id, score: taskScores(goal, provider, model.id) });
+  }
+  return candidates.sort((a, b) => b.score - a.score);
+}
+
+function chosen(provider: AgentProvider, selected: string | undefined, catalog: Record<AgentProvider, AgentProviderState>) {
+  const models = catalog[provider].models;
+  return models.find((m) => m.id === selected)?.id ?? models[0]?.id;
+}
 
 async function textResponse(provider: AgentProvider, model: string, goal: string, history: AgentHistoryMessage[], orgName: string, toolContext = "") {
   const prompt = `${SYSTEM(orgName)}\n${toolContext ? `Workspace tool results:\n${toolContext}\n` : ""}${historyText(history)}\nUser: ${goal}`;
@@ -109,13 +144,34 @@ async function collectRequestedTools(goal: string, ctx: { db: SupabaseClient; or
   return steps;
 }
 
-export async function runGrowthAgent(goal: string, ctx: { db: SupabaseClient; orgId: string; orgSlug: string; orgName: string }, options?: { provider?: AgentProvider; model?: string; history?: AgentHistoryMessage[] }): Promise<AgentRun> {
+export async function runGrowthAgent(goal: string, ctx: { db: SupabaseClient; orgId: string; orgSlug: string; orgName: string }, options?: { provider?: AgentSelection; model?: string; history?: AgentHistoryMessage[] }): Promise<AgentRun> {
   const catalog = await buildCatalog();
-  const provider: AgentProvider = ["openai", "anthropic", "zai", "gemini"].includes(options?.provider ?? "") ? options!.provider! : "gemini";
-  if (!catalog[provider].configured) throw new Error(`${provider} is not configured on the server.`);
-  const model = chosen(provider, options?.model, catalog); const history = options?.history ?? [];
+  const history = options?.history ?? [];
   const steps = await collectRequestedTools(goal, ctx);
   const toolContext = steps.length ? steps.map((s) => `Tool ${s.tool}: ${JSON.stringify(s.result)}`).join("\n") : "";
+
+  if (options?.provider === "auto" || options?.model === "auto") {
+    const candidates = autoCandidates(goal, catalog);
+    if (!candidates.length) throw new Error("No configured AI models are available for Auto mode.");
+    let fallbackCount = 0;
+    let lastError: unknown = null;
+    for (const candidate of candidates) {
+      try {
+        const answer = await textResponse(candidate.provider, candidate.model, goal, history, ctx.orgName, toolContext);
+        return { goal, provider: candidate.provider, model: candidate.model, steps, answer, auto: true, fallbackCount };
+      } catch (err) {
+        lastError = err;
+        if (!isProviderTemporarilyUnavailable(err)) throw err;
+        fallbackCount += 1;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("All Auto models are temporarily unavailable.");
+  }
+
+  const provider: AgentProvider = ["openai", "anthropic", "zai", "gemini"].includes(options?.provider ?? "") ? options!.provider as AgentProvider : "gemini";
+  if (!catalog[provider].configured) throw new Error(`${provider} is not configured on the server.`);
+  const model = chosen(provider, options?.model, catalog);
+  if (!model) throw new Error(`No models are available for ${provider}.`);
   const answer = await textResponse(provider, model, goal, history, ctx.orgName, toolContext);
   return { goal, provider, model, steps, answer };
 }
