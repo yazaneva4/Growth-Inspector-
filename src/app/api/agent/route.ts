@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { createClient, createPublicClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { AgentHistoryMessage, AgentSelection, agentProviders, isProviderTemporarilyUnavailable, runGrowthAgent } from "@/lib/ai/agent";
 
 export const maxDuration = 60;
