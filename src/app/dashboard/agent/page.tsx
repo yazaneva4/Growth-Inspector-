@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default function AgentPage() {
   return (
-    <div className="max-w-6xl">
+    <div className="growth-ai-page max-w-6xl">
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         Growth AI <SparkleIcon className="text-2xl" />
       </h1>
