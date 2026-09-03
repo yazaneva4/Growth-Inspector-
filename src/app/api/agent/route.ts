@@ -16,7 +16,16 @@ function cookieValue(req: NextRequest, name: string): string | undefined {
   return req.cookies.get(name)?.value;
 }
 
+async function requireSignedIn() {
+  const ctx = await getCurrentContext();
+  if (ctx.isDemo || !ctx.userId) return null;
+  return ctx;
+}
+
 export async function GET() {
+  const ctx = await requireSignedIn();
+  if (!ctx) return NextResponse.json({ error: "sign in required" }, { status: 401 });
+
   const providers = await agentProviders();
   const pickerProviders = Object.fromEntries(
     Object.entries(providers).map(([provider, state]) => [
@@ -33,6 +42,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const ctx = await requireSignedIn();
+  if (!ctx) return NextResponse.json({ error: "sign in required" }, { status: 401 });
+
   const body = await req.json().catch(() => null);
   const goal: string | undefined = body?.goal;
   if (!goal?.trim()) return NextResponse.json({ error: "goal required" }, { status: 400 });
@@ -64,8 +76,7 @@ export async function POST(req: NextRequest) {
     .slice(-16)
     .map((message: { role: "user" | "assistant"; content: string }): AgentHistoryMessage => ({ role: message.role, content: message.content }));
 
-  const ctx = await getCurrentContext();
-  const db = ctx.isDemo ? createPublicClient() : await createClient();
+  const db = await createClient();
   const { data: org } = await db.from("organizations").select("id, name, brand_voice").eq("slug", ctx.orgSlug).maybeSingle();
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
 
