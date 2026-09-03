@@ -1,4 +1,4 @@
-import { GrowthAgentModelHub } from "@/components/growth-agent-model-hub";
+import { GrowthAiChat } from "@/components/growth-ai-chat";
 import { SparkleIcon } from "@/components/sparkle-icon";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +10,11 @@ export default function AgentPage() {
         Growth AI <SparkleIcon className="text-2xl" />
       </h1>
       <p className="mt-1 text-sm text-slate-500">
-        A real AI growth teammate with conversations, tools, model selection,
-        and live provider availability across GPT, Anthropic, z.ai, and Google Gemini.
+        A real AI growth teammate with saved conversations, durable conversation memory,
+        model switching, tools, and live provider availability across GPT, Anthropic, z.ai, and Google Gemini.
       </p>
       <div className="mt-6">
-        <GrowthAgentModelHub />
+        <GrowthAiChat />
       </div>
     </div>
   );
