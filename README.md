@@ -19,7 +19,7 @@ See [`SPEC.md`](./SPEC.md) for the full product & technical vision.
 The Growth Inspector agent supports multiple AI providers and can automatically
 choose a configured provider or use a provider selected by the caller.
 
-Current OpenRouter fallback tiers are:
+The current OpenRouter fallback chain uses two free-model tiers:
 
 | Tier | Model | Purpose |
 |---|---|---|
@@ -27,11 +27,14 @@ Current OpenRouter fallback tiers are:
 | **Open Router B** | `google/gemma-4-31b-it:free` | Gemma 4 31B fallback model |
 
 The obsolete Tencent HY3/HY33 Tier C has been removed because that model is no
-longer part of the router. There is intentionally no OpenRouter Tier C in the
-current configuration.
+longer part of the router. There is intentionally **no OpenRouter Tier C** in
+the current configuration.
 
 Set `OPENROUTER_API_KEY` to enable OpenRouter. The model IDs can be overridden
 with `OPENROUTER_MODEL_A` and `OPENROUTER_MODEL_B` when needed.
+
+The agent API also exposes OpenRouter as a selectable provider, so it can be
+used directly as well as through automatic provider selection/fallback.
 
 ## What's built
 
@@ -119,6 +122,7 @@ and `NEXT_PUBLIC_GOOGLE_ENABLED`.
 
 ## Roadmap
 
-The multi-tenant schema, responder engine, multi-provider AI agent, and webhook
-ingestion are in place. See `SPEC.md` for the full product vision — a
- dashboard UI is the next layer to build on top of this foundation.
+The multi-tenant schema, responder engine, multi-provider AI agent, OpenRouter
+A/B fallback integration, and webhook ingestion are in place. See `SPEC.md` for
+the full product vision — a dashboard UI is the next layer to build on top of
+this foundation.
