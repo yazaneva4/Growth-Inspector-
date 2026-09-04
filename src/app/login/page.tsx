@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/logo";
@@ -17,8 +17,10 @@ function rememberedEmail(): string { if (typeof window === "undefined") return "
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState(rememberedEmail);
+  const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => typeof window !== "undefined" && localStorage.getItem(REMEMBER_KEY) === "1");
@@ -26,6 +28,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  useEffect(() => { const invitedEmail = searchParams.get("email"); if (invitedEmail && !email) setEmail(invitedEmail.toLowerCase()); }, [searchParams, email]);
   useEffect(() => { if (codeSent) (document.getElementById("growth-ai-code") as HTMLInputElement | null)?.focus(); }, [codeSent]);
   function persistRememberedEmail() { if (rememberMe) { localStorage.setItem(REMEMBER_KEY, "1"); localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim()); } else { localStorage.removeItem(REMEMBER_KEY); localStorage.removeItem(REMEMBERED_EMAIL_KEY); } }
   function friendlyError(message: string) { if (/rate limit/i.test(message)) return "Too many attempts right now — please wait a minute and try again."; if (/invalid.*otp|otp.*expired|token.*expired/i.test(message)) return "That code is invalid or expired. Request a new code and try again."; if (/not found|user.*not.*exist/i.test(message) && mode === "signin") return "No account was found for this email. Create an account first."; return message; }
@@ -37,10 +40,19 @@ export default function LoginPage() {
   }
   async function requestCode() {
     const normalizedEmail = email.trim().toLowerCase(); if (!normalizedEmail) throw new Error("Enter your email address first.");
+    if (password.length < 8) throw new Error("Password must be at least 8 characters.");
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithOtp({ email: normalizedEmail, options: { shouldCreateUser: mode === "signup", emailRedirectTo: `${appOrigin()}/auth/callback?next=/dashboard/inbox` } });
-    if (authError) throw authError;
-    setCodeSent(true); setNotice(`Growth Inspector sent a 6-digit sign-in code to ${normalizedEmail}.`);
+    if (mode === "signup") {
+      const { error: authError } = await supabase.auth.signUp({ email: normalizedEmail, password, options: { emailRedirectTo: `${appOrigin()}/auth/callback?next=/dashboard/inbox` } });
+      if (authError) throw authError;
+    } else {
+      const check = await fetch("/api/auth/check-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: normalizedEmail, password }) });
+      const result = await check.json().catch(() => ({}));
+      if (!check.ok) throw new Error(result.error || "The email or password is incorrect.");
+      const { error: authError } = await supabase.auth.signInWithOtp({ email: normalizedEmail, options: { shouldCreateUser: false, emailRedirectTo: `${appOrigin()}/auth/callback?next=/dashboard/inbox` } });
+      if (authError) throw authError;
+    }
+    setCodeSent(true); setNotice(`Growth Inspector sent a 6-digit verification code to ${normalizedEmail}.`);
   }
   async function verifyCode() {
     const normalizedEmail = email.trim().toLowerCase(); if (!/^\d{6}$/.test(code.trim())) throw new Error("Enter the 6-digit code from Growth Inspector.");
@@ -55,6 +67,7 @@ export default function LoginPage() {
     {googleEnabled && !codeSent && <><button onClick={signInWithGoogle} disabled={busy} className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">Continue with Google</button><div className="flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />or with email<span className="h-px flex-1 bg-slate-200" /></div></>}
     {!codeSent && <div className="flex rounded-lg border border-slate-300 bg-slate-50 text-sm">{(["signin", "signup"] as const).map((m) => <button key={m} type="button" onClick={() => { setMode(m); setError(null); setNotice(null); }} className={`flex-1 rounded-md px-3 py-2.5 font-medium ${mode === m ? "border border-slate-200 bg-white text-slate-950" : "text-slate-600"}`}>{m === "signin" ? "Sign in" : "Create account"}</button>)}</div>}
     <form onSubmit={submit} className="space-y-4"><input type="email" required disabled={codeSent} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.sa" className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50" />
+      <input type="password" required minLength={8} autoComplete={mode === "signin" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
       {codeSent && <input id="growth-ai-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code" className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-lg tracking-[0.35em] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />}
       {!codeSent && <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="h-4 w-4 rounded border-slate-300 accent-emerald-500" />Remember me</label>}
       <button type="submit" disabled={busy} className="w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">{busy ? "…" : codeSent ? "Verify code" : "Send code"}</button>
