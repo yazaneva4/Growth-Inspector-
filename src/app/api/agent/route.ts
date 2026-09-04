@@ -5,7 +5,7 @@ import { AgentHistoryMessage, AgentSelection, agentProviders, isProviderTemporar
 
 export const maxDuration = 60;
 
-const PROVIDERS: AgentSelection[] = ["auto", "openai", "anthropic", "zai", "gemini"];
+const PROVIDERS: AgentSelection[] = ["auto", "openai", "anthropic", "zai", "gemini", "openrouter"];
 const EXECUTION_MODES = ["local", "cloud", "auto"] as const;
 const PERMISSION_MODES = ["ask", "auto", "skip", "manual"] as const;
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (provider !== "auto" && !providers[provider].configured) {
-    const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
+    const label = provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : provider === "openrouter" ? "OpenRouter" : "Google Gemini";
     return NextResponse.json({ error: `${label} is not configured on the server.`, temporaryUnavailable: false, provider, model, executionMode, permissionMode }, { status: 503 });
   }
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     console.error(err);
     const message = err instanceof Error ? err.message : "agent failed";
     const temporaryUnavailable = isProviderTemporarilyUnavailable(err);
-    const label = provider === "auto" || model === "auto" ? "Auto mode" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : "Google Gemini";
+    const label = provider === "auto" || model === "auto" ? "Auto mode" : provider === "openai" ? "GPT" : provider === "anthropic" ? "Anthropic" : provider === "zai" ? "z.ai" : provider === "openrouter" ? "OpenRouter" : "Google Gemini";
     return NextResponse.json({ error: temporaryUnavailable ? `${label} is temporarily unavailable because quota or rate limits were reached.` : message, temporaryUnavailable, provider, model, executionMode, permissionMode }, { status: temporaryUnavailable ? 429 : 500 });
   }
 }
