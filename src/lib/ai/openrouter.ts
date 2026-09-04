@@ -31,8 +31,8 @@ export async function openrouterChatJSON<T>(opts: {
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://growth-space.net",
-      "X-Title": "GrowthSpace",
+      "HTTP-Referer": "https://growth-inspector-zl9k.vercel.app",
+      "X-Title": "Growth Inspector",
     },
     body: JSON.stringify({
       model: opts.model,
@@ -67,8 +67,8 @@ export async function openrouterChatText(opts: {
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://growth-space.net",
-      "X-Title": "GrowthSpace",
+      "HTTP-Referer": "https://growth-inspector-zl9k.vercel.app",
+      "X-Title": "Growth Inspector",
     },
     body: JSON.stringify({
       model: opts.model,
