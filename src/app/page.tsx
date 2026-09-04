@@ -55,7 +55,7 @@ export default function Home() {
           sleep.
         </h1>
         <p className="mx-auto mt-8 max-w-2xl text-balance text-lg text-slate-600">
-          Growth Space autonomously manages customer DMs and comments in
+          Growth Inspector autonomously manages customer DMs and comments in
           Arabic and English, delivering instant, human-like responses while
           continuously tracking customer sentiment, engagement, and growth
           opportunities—all in one intelligent platform.
@@ -103,7 +103,7 @@ export default function Home() {
           </Link>
         </div>
         <div className="mt-3 text-slate-500">
-          Growth Space — autonomous social customer engagement for Saudi Arabia.
+          Growth Inspector — autonomous social customer engagement for Saudi Arabia.
         </div>
       </footer>
     </main>
