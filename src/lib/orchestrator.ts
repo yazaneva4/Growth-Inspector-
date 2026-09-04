@@ -4,28 +4,20 @@ import { getAdapter, type InboundMessage } from "@/lib/platforms/adapter";
 import type { BrandVoice, Organization, Intent } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Short, human-scannable conversation title from the AI's classification —
- *  no extra model call needed, updates every turn as context accumulates. */
 function titleFor(intent: Intent, sentiment: string, message: string): string {
   const lower = message.toLowerCase();
   switch (intent) {
-    case "price_inquiry":
-      return "Pricing Inquiry";
-    case "complaint":
-      if (/ship|deliver|late|delay/.test(lower)) return "Complaint About Shipment";
-      return "Customer Complaint";
-    case "hot_lead":
-      return "Sales Opportunity";
+    case "price_inquiry": return "Pricing Inquiry";
+    case "complaint": return /ship|deliver|late|delay/.test(lower) ? "Complaint About Shipment" : "Customer Complaint";
+    case "hot_lead": return "Sales Opportunity";
     case "support":
       if (/refund/.test(lower)) return "Refund Request";
       if (/partner/.test(lower)) return "Partnership Request";
       if (/deliver|ship/.test(lower)) return "Delivery Question";
       if (/recommend|suggest|which one/.test(lower)) return "Product Recommendation";
       return "Support Request";
-    case "spam":
-      return "Spam";
-    default:
-      return sentiment === "negative" ? "Customer Feedback" : "General Inquiry";
+    case "spam": return "Spam";
+    default: return sentiment === "negative" ? "Customer Feedback" : "General Inquiry";
   }
 }
 
@@ -36,64 +28,44 @@ function urgencyFor(intent: Intent, sentiment: string, decision: string): "low" 
   return "low";
 }
 
-/**
- * Core ingestion → AI → action pipeline. Defaults to the service-role client
- * (webhook handler) but accepts any client — e.g. the publishable-key client
- * for the public demo workspace, which has scoped insert/update policies.
- */
-export async function handleInbound(
-  inbound: InboundMessage,
-  client?: SupabaseClient,
-) {
+export async function handleInbound(inbound: InboundMessage, client?: SupabaseClient) {
   const db = client ?? createServiceClient();
 
-  // 1. Resolve the connected account → org.
-  const { data: account } = await db
-    .from("connected_accounts")
-    .select("*")
-    .eq("platform", inbound.platform)
-    .eq("external_id", inbound.accountExternalId)
-    .eq("is_active", true)
-    .single();
+  const { data: account } = await db.from("connected_accounts").select("*")
+    .eq("platform", inbound.platform).eq("external_id", inbound.accountExternalId).eq("is_active", true).single();
   if (!account) {
     console.warn("No active account for inbound", inbound.accountExternalId);
     return;
   }
 
-  const { data: orgRow } = await db
-    .from("organizations")
-    .select("*")
-    .eq("id", account.org_id)
-    .single();
+  // Reject unsupported channels before the AI can generate or persist a reply.
+  let adapter;
+  try {
+    adapter = getAdapter(inbound.platform);
+  } catch (err) {
+    console.warn("Inbound platform unsupported", inbound.platform, err);
+    return { unsupported: true, error: err instanceof Error ? err.message : "Unsupported platform" };
+  }
+
+  const { data: orgRow } = await db.from("organizations").select("*").eq("id", account.org_id).single();
   const org = orgRow as Organization | null;
   if (!org) return;
 
-  // 2. Find or create the conversation.
-  let { data: conversation } = await db
-    .from("conversations")
-    .select("*")
-    .eq("account_id", account.id)
-    .eq("customer_handle", inbound.customerHandle)
-    .eq("status", "open")
-    .maybeSingle();
+  let { data: conversation } = await db.from("conversations").select("*")
+    .eq("account_id", account.id).eq("customer_handle", inbound.customerHandle).eq("status", "open").maybeSingle();
 
   if (!conversation) {
-    const { data } = await db
-      .from("conversations")
-      .insert({
-        org_id: org.id,
-        account_id: account.id,
-        platform: inbound.platform,
-        customer_handle: inbound.customerHandle,
-        customer_name: inbound.customerName ?? null,
-      })
-      .select("*")
-      .single();
+    const { data } = await db.from("conversations").insert({
+      org_id: org.id,
+      account_id: account.id,
+      platform: inbound.platform,
+      customer_handle: inbound.customerHandle,
+      customer_name: inbound.customerName ?? null,
+    }).select("*").single();
     conversation = data;
   }
   if (!conversation) return;
 
-  // 3. Persist the inbound message.
   await db.from("messages").insert({
     org_id: org.id,
     conversation_id: conversation.id,
@@ -101,19 +73,13 @@ export async function handleInbound(
     author: "customer",
     body: inbound.body,
     delivered: true,
+    delivery_status: "delivered",
+    delivered_at: new Date().toISOString(),
   });
 
-  // 4. Load recent history for context.
-  const { data: history } = await db
-    .from("messages")
-    .select("author, body")
-    .eq("conversation_id", conversation.id)
-    .order("created_at", { ascending: true })
-    .limit(12);
+  const { data: history } = await db.from("messages").select("author, body")
+    .eq("conversation_id", conversation.id).order("created_at", { ascending: true }).limit(12);
 
-  // 5. Run the responder pipeline: Claude -> Gemini, both retrying transient
-  // failures. If neither can produce a reply, flag it for human attention
-  // instead of losing the message or faking a response.
   const voice = (org.brand_voice ?? {}) as BrandVoice;
   let result;
   try {
@@ -126,38 +92,25 @@ export async function handleInbound(
     });
   } catch (err) {
     if (err instanceof AIUnavailableError) {
-      await db
-        .from("conversations")
-        .update({ status: "escalated", urgency: "high", last_message_at: new Date().toISOString() })
-        .eq("id", conversation.id);
-      await db.from("escalations").insert({
-        org_id: org.id,
-        conversation_id: conversation.id,
-        reason: "ai_unavailable",
-        draft: null,
-      });
+      await db.from("conversations").update({ status: "escalated", urgency: "high", last_message_at: new Date().toISOString() }).eq("id", conversation.id);
+      await db.from("escalations").insert({ org_id: org.id, conversation_id: conversation.id, reason: "ai_unavailable", draft: null });
     }
     throw err;
   }
 
-  // 6. Update conversation signals + auto-generated title/urgency.
-  await db
-    .from("conversations")
-    .update({
-      intent: result.analysis.intent,
-      sentiment: result.analysis.sentiment,
-      language: result.analysis.language,
-      lead_score: result.analysis.lead_score,
-      last_message_at: new Date().toISOString(),
-      status: result.decision === "escalate" ? "escalated" : "open",
-      title: titleFor(result.analysis.intent, result.analysis.sentiment, inbound.body),
-      urgency: urgencyFor(result.analysis.intent, result.analysis.sentiment, result.decision),
-      ai_confidence: result.confidence,
-      summary: inbound.body.slice(0, 140),
-    })
-    .eq("id", conversation.id);
+  await db.from("conversations").update({
+    intent: result.analysis.intent,
+    sentiment: result.analysis.sentiment,
+    language: result.analysis.language,
+    lead_score: result.analysis.lead_score,
+    last_message_at: new Date().toISOString(),
+    status: result.decision === "escalate" ? "escalated" : "open",
+    title: titleFor(result.analysis.intent, result.analysis.sentiment, inbound.body),
+    urgency: urgencyFor(result.analysis.intent, result.analysis.sentiment, result.decision),
+    ai_confidence: result.confidence,
+    summary: inbound.body.slice(0, 140),
+  }).eq("id", conversation.id);
 
-  // 7. Act on the decision.
   if (result.decision === "escalate") {
     await db.from("escalations").insert({
       org_id: org.id,
@@ -168,9 +121,9 @@ export async function handleInbound(
     return result;
   }
 
-  // Persist the AI reply (sent or pending-approval draft).
   const sending = result.decision === "send";
-  await db.from("messages").insert({
+  const messageStatus = sending ? "pending" : "draft";
+  const { data: outbound } = await db.from("messages").insert({
     org_id: org.id,
     conversation_id: conversation.id,
     direction: "outbound",
@@ -178,16 +131,37 @@ export async function handleInbound(
     body: result.reply,
     ai_confidence: result.confidence,
     ai_meta: { decision: result.decision, intent: result.analysis.intent },
-    delivered: sending,
-  });
+    delivered: false,
+    delivery_status: messageStatus,
+    delivery_attempts: sending ? 1 : 0,
+  }).select("id").single();
 
-  if (sending) {
-    const adapter = getAdapter(inbound.platform);
-    await adapter.send(
-      inbound.accountExternalId,
-      inbound.customerHandle,
-      result.reply,
-    );
+  if (!sending) return result;
+  if (!outbound) throw new Error("Could not persist outbound message before delivery.");
+
+  try {
+    await adapter.send(inbound.accountExternalId, inbound.customerHandle, result.reply);
+    await db.from("messages").update({
+      delivered: true,
+      delivery_status: "delivered",
+      delivery_error: null,
+      delivered_at: new Date().toISOString(),
+    }).eq("id", outbound.id);
+  } catch (err) {
+    const deliveryError = err instanceof Error ? err.message : "Platform delivery failed";
+    await db.from("messages").update({
+      delivered: false,
+      delivery_status: "failed",
+      delivery_error: deliveryError.slice(0, 1000),
+    }).eq("id", outbound.id);
+    await db.from("conversations").update({ status: "escalated", urgency: "high" }).eq("id", conversation.id);
+    await db.from("escalations").insert({
+      org_id: org.id,
+      conversation_id: conversation.id,
+      reason: "delivery_failed",
+      draft: result.reply,
+    });
+    throw err;
   }
 
   return result;
