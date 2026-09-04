@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -24,9 +24,21 @@ function AccountFooter({ email }: { email: string | null }) {
 
 export function DashboardChrome({ workspaceName, email, children }: { workspaceName: string; email: string | null; children: React.ReactNode }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && localStorage.getItem("gi-sidebar-collapsed") === "1");
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  function toggleCollapsed() { setCollapsed((c) => { const next = !c; localStorage.setItem("gi-sidebar-collapsed", next ? "1" : "0"); return next; }); }
+
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("gi-sidebar-collapsed") === "1");
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("gi-sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
   return <div className="flex min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
     {mobileOpen && <div onClick={() => setMobileOpen(false)} aria-hidden className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" />}
     <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-200 ease-out lg:static lg:h-full lg:shadow-none lg:transition-[width] ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 ${collapsed ? "lg:w-[76px]" : "lg:w-64"}`}>
