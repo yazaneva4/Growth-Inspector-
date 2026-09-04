@@ -1,10 +1,8 @@
 /**
  * Unified outbound email for the whole app (invoices, access requests, inbox
  * email replies). Transport priority:
- *   1. Gmail SMTP  — set GMAIL_USER + GMAIL_APP_PASSWORD (Google account with
- *      2-Step Verification → App passwords). Sends as your real Gmail address.
- *   2. Dry-run     — nothing configured: logs the send and returns false so
- *      callers can mark the item as draft instead of sent.
+ *   1. Gmail SMTP — set GMAIL_USER + GMAIL_APP_PASSWORD.
+ *   2. Dry-run — nothing configured: logs the attempted send and returns false.
  */
 
 export interface OutboundEmail {
@@ -19,7 +17,7 @@ export function emailTransport(): "gmail" | "none" {
   return "none";
 }
 
-/** Sends the email; resolves true when actually delivered to a provider. */
+/** Resolves true only when the SMTP provider accepted the message. */
 export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
   const transport = emailTransport();
 
@@ -31,9 +29,7 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
       auth: { user, pass: process.env.GMAIL_APP_PASSWORD! },
     });
     await smtp.sendMail({
-      // Gmail rewrites the sender to the authenticated account; use EMAIL_FROM
-      // only for the display name part.
-      from: process.env.EMAIL_FROM ?? `Growth Space <${user}>`,
+      from: process.env.EMAIL_FROM ?? `Growth Inspector <${user}>`,
       to: mail.to,
       subject: mail.subject,
       html: mail.html,
