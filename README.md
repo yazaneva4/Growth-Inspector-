@@ -16,42 +16,66 @@ See [`SPEC.md`](./SPEC.md) for the full product & technical vision.
 
 ## AI agent
 
-The Growth Inspector agent supports multiple AI providers and can automatically
-choose a configured provider or use a provider selected by the caller.
+The **Growth AI** agent supports multiple AI providers, saved conversations,
+durable workspace memory, model switching, workspace tools, live provider
+availability, and automatic fallback.
 
-The current OpenRouter fallback chain uses two free-model tiers:
+### Providers
+
+Growth AI can use configured models from:
+
+- OpenAI / GPT
+- Anthropic / Claude
+- z.ai / GLM
+- Google / Gemini
+- OpenRouter
+
+In **Auto** mode, the backend builds a ranked pool from every configured
+provider/model and falls back when a candidate is temporarily unavailable.
+
+### OpenRouter tiers
+
+The current OpenRouter configuration uses two free-model tiers:
 
 | Tier | Model | Purpose |
 |---|---|---|
 | **Open Router A** | `openai/gpt-oss-20b:free` | GPT-OSS 20B fallback model |
 | **Open Router B** | `google/gemma-4-31b-it:free` | Gemma 4 31B fallback model |
 
-The obsolete Tencent HY3/HY33 Tier C has been removed because that model is no
-longer part of the router. There is intentionally **no OpenRouter Tier C** in
-the current configuration.
+The obsolete Tencent HY3/HY33 Tier C has been removed. There is intentionally
+**no OpenRouter Tier C** in the current configuration.
 
 Set `OPENROUTER_API_KEY` to enable OpenRouter. The model IDs can be overridden
 with `OPENROUTER_MODEL_A` and `OPENROUTER_MODEL_B` when needed.
 
-The agent API also exposes OpenRouter as a selectable provider, so it can be
-used directly as well as through automatic provider selection/fallback.
+## Growth AI conversations
+
+Growth AI conversations are stored in the workspace's Supabase tables and
+loaded again when the signed-in user returns. The UI supports new chats,
+search, archive/restore, rename, delete, model/provider selection, and realtime
+refresh across signed-in devices.
+
+The conversations API is authenticated and scopes reads/writes to the current
+workspace, rather than using the public demo client for private AI history.
 
 ## What's built
 
-The app is currently pared back to its core: **real auth** and the **backend
-responder pipeline**. No dashboard UI is mounted yet.
+The product currently includes the main **Growth Inspector dashboard**, real
+authentication, the Growth AI operator, the backend responder pipeline, and
+channel/integration foundations.
 
 | Area | Where |
 |---|---|
 | Multi-tenant schema + RLS | `supabase/migrations/` |
 | Email + password auth (sign up / sign in / sign out, Google-ready) | `src/app/login/`, `src/app/auth/` |
+| Growth AI multi-provider agent + OpenRouter fallback tiers | `src/lib/ai/agent.ts`, `src/lib/ai/openrouter.ts` |
+| Saved Growth AI conversations | `src/app/api/agent/conversations/`, `src/components/growth-ai-chat.tsx` |
 | AI responder (analyze → guardrail → reply → decide) | `src/lib/ai/responder.ts` |
-| Multi-provider AI agent + OpenRouter fallback tiers | `src/lib/ai/agent.ts`, `src/lib/ai/openrouter.ts` |
 | Ingestion pipeline (inbound → AI → send/escalate) | `src/lib/orchestrator.ts` |
-| Platform adapters (sandbox, WhatsApp, Instagram, email — real sends via Meta Graph API + Resend) | `src/lib/platforms/adapter.ts` |
+| Platform adapters (sandbox, WhatsApp, Instagram, email) | `src/lib/platforms/adapter.ts` |
 | Webhook ingestion | `src/app/api/webhooks/[platform]/route.ts` |
-| Voice calls (Twilio: greet → listen → AI reply → speak, loop) | `src/lib/voice.ts`, `src/app/api/voice/` |
-| Publishing to X (agent-authored or exact text) | `src/lib/platforms/x.ts`, `src/lib/ai/social-post.ts`, `src/app/api/social/post/` |
+| Voice calls (Twilio) | `src/lib/voice.ts`, `src/app/api/voice/` |
+| Publishing to X | `src/lib/platforms/x.ts`, `src/lib/ai/social-post.ts`, `src/app/api/social/post/` |
 | Public careers / apply page | `src/app/careers/`, `src/app/api/careers/` |
 | Integration health check | `src/app/api/health/route.ts` |
 
@@ -60,6 +84,8 @@ responder pipeline**. No dashboard UI is mounted yet.
 Email + password is the working login (`/login` → sign up or sign in). Google
 sign-in is wired but hidden until you enable the provider in Supabase
 **and** set `NEXT_PUBLIC_GOOGLE_ENABLED=true`.
+
+Growth AI and its saved conversation API require a signed-in user.
 
 ## Voice calls
 
@@ -122,7 +148,7 @@ and `NEXT_PUBLIC_GOOGLE_ENABLED`.
 
 ## Roadmap
 
-The multi-tenant schema, responder engine, multi-provider AI agent, OpenRouter
-A/B fallback integration, and webhook ingestion are in place. See `SPEC.md` for
-the full product vision — a dashboard UI is the next layer to build on top of
-this foundation.
+The multi-tenant schema, dashboard UI, Growth AI multi-provider agent,
+OpenRouter A/B fallback integration, saved conversations, realtime workspace
+sync, and webhook ingestion are in place. The remaining product work is to
+expand channel integrations, automation, and analytics depth around this core.
