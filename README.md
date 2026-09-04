@@ -11,7 +11,27 @@ See [`SPEC.md`](./SPEC.md) for the full product & technical vision.
 - **Next.js 16** (App Router, TypeScript, Tailwind) — deploy on **Vercel**
 - **Supabase** — Postgres, Auth, multi-tenant isolation via Row-Level Security
 - **Anthropic Claude** — Sonnet for high-volume replies, Opus for analytics
+- **OpenRouter** — additional AI fallback tiers with free models
 - **Twilio** — voice calls: speech-to-text, telephony, text-to-speech (Arabic + English)
+
+## AI agent
+
+The Growth Inspector agent supports multiple AI providers and can automatically
+choose a configured provider or use a provider selected by the caller.
+
+Current OpenRouter fallback tiers are:
+
+| Tier | Model | Purpose |
+|---|---|---|
+| **Open Router A** | `openai/gpt-oss-20b:free` | GPT-OSS 20B fallback model |
+| **Open Router B** | `google/gemma-4-31b-it:free` | Gemma 4 31B fallback model |
+
+The obsolete Tencent HY3/HY33 Tier C has been removed because that model is no
+longer part of the router. There is intentionally no OpenRouter Tier C in the
+current configuration.
+
+Set `OPENROUTER_API_KEY` to enable OpenRouter. The model IDs can be overridden
+with `OPENROUTER_MODEL_A` and `OPENROUTER_MODEL_B` when needed.
 
 ## What's built
 
@@ -23,6 +43,7 @@ responder pipeline**. No dashboard UI is mounted yet.
 | Multi-tenant schema + RLS | `supabase/migrations/` |
 | Email + password auth (sign up / sign in / sign out, Google-ready) | `src/app/login/`, `src/app/auth/` |
 | AI responder (analyze → guardrail → reply → decide) | `src/lib/ai/responder.ts` |
+| Multi-provider AI agent + OpenRouter fallback tiers | `src/lib/ai/agent.ts`, `src/lib/ai/openrouter.ts` |
 | Ingestion pipeline (inbound → AI → send/escalate) | `src/lib/orchestrator.ts` |
 | Platform adapters (sandbox, WhatsApp, Instagram, email — real sends via Meta Graph API + Resend) | `src/lib/platforms/adapter.ts` |
 | Webhook ingestion | `src/app/api/webhooks/[platform]/route.ts` |
@@ -91,11 +112,13 @@ npm run dev
 ## Environment
 
 See [`.env.example`](./.env.example): Supabase URL/keys, `ANTHROPIC_API_KEY`,
-`META_VERIFY_TOKEN`/`META_ACCESS_TOKEN` for WhatsApp/Instagram, `TWILIO_*` for
-voice + Whisper, `X_*` for publishing to X, and `NEXT_PUBLIC_GOOGLE_ENABLED`.
+`OPENROUTER_API_KEY` and optional `OPENROUTER_MODEL_A` /
+`OPENROUTER_MODEL_B`, `META_VERIFY_TOKEN`/`META_ACCESS_TOKEN` for
+WhatsApp/Instagram, `TWILIO_*` for voice + Whisper, `X_*` for publishing to X,
+and `NEXT_PUBLIC_GOOGLE_ENABLED`.
 
 ## Roadmap
 
-The multi-tenant schema, responder engine, and webhook ingestion are in place.
-See `SPEC.md` for the full product vision — a dashboard UI is the next layer
-to build on top of this foundation.
+The multi-tenant schema, responder engine, multi-provider AI agent, and webhook
+ingestion are in place. See `SPEC.md` for the full product vision — a
+ dashboard UI is the next layer to build on top of this foundation.
