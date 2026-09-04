@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/logo";
@@ -10,7 +10,7 @@ type Mode = "signin" | "signup";
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true";
 const REMEMBER_KEY = "gi_remember_me";
 const REMEMBERED_EMAIL_KEY = "gi_remembered_email";
-const PRODUCTION_APP_URL = "https://growth-inspector-zl9k.vercel.app";
+const PRODUCTION_APP_URL = "https://growth-inspector-yazaneva4-3470s-projects.vercel.app";
 
 function appOrigin() {
   if (typeof window === "undefined") return PRODUCTION_APP_URL;
@@ -28,7 +28,6 @@ function rememberedEmail(): string {
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState(rememberedEmail);
   const [password, setPassword] = useState("");
@@ -41,9 +40,9 @@ export default function LoginPage() {
   const [passkeySupported, setPasskeySupported] = useState(false);
 
   useEffect(() => {
-    const invitedEmail = searchParams.get("email");
+    const invitedEmail = new URLSearchParams(window.location.search).get("email");
     if (invitedEmail && !email) setEmail(invitedEmail.toLowerCase());
-  }, [searchParams, email]);
+  }, [email]);
 
   useEffect(() => {
     setPasskeySupported(
@@ -233,6 +232,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.sa"
+            autoComplete="email"
             className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
           />
           <input
