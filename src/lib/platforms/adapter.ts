@@ -1,65 +1,43 @@
 import type { SocialPlatform } from "@/lib/types";
 import { sendEmail } from "@/lib/email/send";
 
-/** A normalized inbound event, whatever platform it came from. */
 export interface InboundMessage {
   platform: SocialPlatform;
-  accountExternalId: string; // which connected account received it
+  accountExternalId: string;
   customerHandle: string;
   customerName?: string;
   body: string;
   receivedAt: string;
 }
 
-/** Each platform implements ingest (webhook → normalized) + send. */
 export interface PlatformAdapter {
   platform: SocialPlatform;
-  /** Parse a raw platform webhook payload into normalized messages. */
   parseWebhook(payload: unknown): InboundMessage[];
-  /** Deliver an outbound reply back to the customer on the platform. */
   send(accountExternalId: string, customerHandle: string, body: string): Promise<void>;
 }
 
-/**
- * Sandbox adapter — lets the whole pipeline run end-to-end without live
- * platform credentials. Real WhatsApp/Instagram adapters slot in here
- * with the same interface once business accounts are verified (SPEC §5).
- */
 export const sandboxAdapter: PlatformAdapter = {
   platform: "sandbox",
   parseWebhook(payload: unknown): InboundMessage[] {
     const p = payload as Partial<InboundMessage> & { body?: string };
     if (!p?.body) return [];
-    return [
-      {
-        platform: "sandbox",
-        accountExternalId: p.accountExternalId ?? "sandbox-account",
-        customerHandle: p.customerHandle ?? "sandbox-customer",
-        customerName: p.customerName,
-        body: p.body,
-        receivedAt: new Date().toISOString(),
-      },
-    ];
+    return [{
+      platform: "sandbox",
+      accountExternalId: p.accountExternalId ?? "sandbox-account",
+      customerHandle: p.customerHandle ?? "sandbox-customer",
+      customerName: p.customerName,
+      body: p.body,
+      receivedAt: new Date().toISOString(),
+    }];
   },
   async send(accountExternalId, customerHandle, body) {
-    // In the sandbox we just log; the reply is persisted in the DB and shown
-    // in the inbox UI. Real adapters call the platform send API here.
-    console.log(
-      `[sandbox] -> ${customerHandle} via ${accountExternalId}: ${body}`,
-    );
+    console.log(`[sandbox] -> ${customerHandle} via ${accountExternalId}: ${body}`);
   },
 };
 
-/**
- * Instagram Direct Messages, via the same Meta Graph API family as WhatsApp
- * (Instagram messaging is proxied through the connected Facebook Page).
- * `accountExternalId` is the Page/IG-connected id the message was sent to;
- * `customerHandle` is the sender's Instagram-Scoped ID (IGSID) from the webhook.
- */
 export const instagramAdapter: PlatformAdapter = {
   platform: "instagram",
   parseWebhook(payload: unknown): InboundMessage[] {
-    // Instagram (via Graph API) wraps DMs in entry[].messaging[], Messenger-style.
     const messages: InboundMessage[] = [];
     const entries = (payload as { entry?: unknown[] })?.entry ?? [];
     for (const entry of entries as Array<{
@@ -71,7 +49,7 @@ export const instagramAdapter: PlatformAdapter = {
       }>;
     }>) {
       for (const m of entry.messaging ?? []) {
-        if (!m.message?.text || m.message.is_echo) continue; // skip our own sent messages
+        if (!m.message?.text || m.message.is_echo) continue;
         messages.push({
           platform: "instagram",
           accountExternalId: m.recipient?.id ?? entry.id ?? "",
@@ -85,81 +63,47 @@ export const instagramAdapter: PlatformAdapter = {
   },
   async send(accountExternalId, customerHandle, body) {
     const token = process.env.META_ACCESS_TOKEN;
-    if (!token) {
-      console.log(`[instagram:dryrun] -> ${customerHandle} via ${accountExternalId}: ${body}`);
-      return;
-    }
-    const res = await fetch(
-      `https://graph.facebook.com/v20.0/${accountExternalId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          recipient: { id: customerHandle },
-          message: { text: body },
-        }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Instagram send failed: ${res.status} ${await res.text()}`);
-    }
+    if (!token) throw new Error("Instagram delivery is not configured: META_ACCESS_TOKEN is missing.");
+    const res = await fetch(`https://graph.facebook.com/v20.0/${accountExternalId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ recipient: { id: customerHandle }, message: { text: body } }),
+    });
+    if (!res.ok) throw new Error(`Instagram send failed: ${res.status} ${await res.text()}`);
   },
 };
 
-/**
- * Email channel. Accepts a normalized inbound-email payload compatible with
- * common inbound-parse providers (Postmark, SendGrid, Mailgun): { from,
- * fromName, subject, text, to }. The customer's email address is the handle so
- * replies thread by sender. Sending is wired to a provider's API in prod.
- */
 export const emailAdapter: PlatformAdapter = {
   platform: "email",
   parseWebhook(payload: unknown): InboundMessage[] {
     const p = (payload ?? {}) as {
-      from?: string;
-      From?: string;
-      sender?: string;
-      fromName?: string;
-      FromName?: string;
-      subject?: string;
-      Subject?: string;
-      text?: string;
-      TextBody?: string;
-      "body-plain"?: string;
-      to?: string;
-      To?: string;
-      mailbox?: string;
+      from?: string; From?: string; sender?: string;
+      fromName?: string; FromName?: string;
+      subject?: string; Subject?: string;
+      text?: string; TextBody?: string; "body-plain"?: string;
+      to?: string; To?: string; mailbox?: string;
     };
     const from = p.from ?? p.From ?? p.sender;
     const body = p.text ?? p.TextBody ?? p["body-plain"];
     if (!from || !body) return [];
     const subject = p.subject ?? p.Subject;
-    return [
-      {
-        platform: "email",
-        accountExternalId: p.to ?? p.To ?? p.mailbox ?? "support-inbox",
-        customerHandle: from,
-        customerName: p.fromName ?? p.FromName,
-        body: subject ? `${subject}\n\n${body}` : body,
-        receivedAt: new Date().toISOString(),
-      },
-    ];
+    return [{
+      platform: "email",
+      accountExternalId: p.to ?? p.To ?? p.mailbox ?? "support-inbox",
+      customerHandle: from,
+      customerName: p.fromName ?? p.FromName,
+      body: subject ? `${subject}\n\n${body}` : body,
+      receivedAt: new Date().toISOString(),
+    }];
   },
   async send(accountExternalId, customerHandle, body) {
-    // Unified transport: Gmail SMTP when configured, else Resend, else a
-    // logged dry-run so the demo still works end to end.
-    await sendEmail({
-      to: customerHandle,
-      subject: "Re: your message",
-      text: body,
-    });
+    void accountExternalId;
+    const sent = await sendEmail({ to: customerHandle, subject: "Re: your message", text: body });
+    if (!sent) throw new Error("Email delivery is not configured; the message was not sent.");
   },
 };
 
-const ADAPTERS: Record<string, PlatformAdapter> = {
+const ADAPTERS: Partial<Record<SocialPlatform, PlatformAdapter>> = {
   sandbox: sandboxAdapter,
   instagram: instagramAdapter,
   email: emailAdapter,
@@ -167,6 +111,10 @@ const ADAPTERS: Record<string, PlatformAdapter> = {
 
 export function getAdapter(platform: SocialPlatform): PlatformAdapter {
   const a = ADAPTERS[platform];
-  if (!a) throw new Error(`No adapter for platform: ${platform}`);
+  if (!a) throw new Error(`Unsupported platform: ${platform}. Outbound delivery is disabled until an adapter is configured.`);
   return a;
+}
+
+export function isPlatformSupported(platform: SocialPlatform): boolean {
+  return Boolean(ADAPTERS[platform]);
 }
