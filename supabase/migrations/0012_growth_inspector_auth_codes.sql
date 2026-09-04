@@ -4,12 +4,16 @@
 create table if not exists public.auth_email_codes (
   id uuid primary key default gen_random_uuid(),
   email text not null,
+  user_id uuid,
   code_hash text not null,
   expires_at timestamptz not null,
   attempts integer not null default 0,
   consumed_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.auth_email_codes
+  add column if not exists user_id uuid;
 
 create index if not exists auth_email_codes_email_created_idx
   on public.auth_email_codes (email, created_at desc);
