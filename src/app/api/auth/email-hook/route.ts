@@ -30,53 +30,44 @@ function verifySignature(body: string, headers: Headers) {
 
 function appUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  if (configured && /^https:\/\//i.test(configured) && !/localhost|127\.0\.0\.1/i.test(configured)) {
-    return configured;
-  }
+  if (configured && /^https:\/\//i.test(configured) && !/localhost|127\.0\.0\.1/i.test(configured)) return configured;
   return PRODUCTION_APP_URL;
 }
 
-function emailContent(action: string, token: string, tokenHash: string) {
+function emailContent(action: string, tokenHash: string) {
   const callback = `${appUrl()}/auth/callback`;
+  const type = action === "signup" ? "email" : action;
   const link = tokenHash
-    ? `${callback}?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(action === "signup" ? "email" : action)}&next=%2Fdashboard%2Finbox`
+    ? `${callback}?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(type)}&next=%2Fdashboard%2Finbox`
     : "";
   const labels: Record<string, string> = {
     signup: "Confirm your Growth Inspector account",
-    magiclink: "Your Growth Inspector sign-in code",
+    magiclink: "Sign in to Growth Inspector",
     recovery: "Reset your Growth Inspector password",
     invite: "Your Growth Inspector invitation",
     email_change: "Confirm your new Growth Inspector email",
-    reauthentication: "Your Growth Inspector verification code",
+    reauthentication: "Confirm your Growth Inspector session",
   };
-  const subject = labels[action] ?? "Your Growth Inspector verification code";
-  const text = token
-    ? `${subject}\n\nYour Growth Inspector verification code is: ${token}\n\nThis code was requested for your Growth Inspector account. If you did not request it, you can ignore this email.`
-    : `${subject}\n\nUse the secure Growth Inspector link below to continue.\n${link}`;
-  const html = token
-    ? `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><div style="font-weight:700;font-size:20px">Growth Inspector</div><h2>${subject}</h2><p>Your verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px">${token}</p>${link ? `<p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px">Continue securely</a></p>` : ""}<p style="color:#64748b;font-size:13px">If you did not request this, you can ignore this email.</p></div>`
-    : `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><div style="font-weight:700;font-size:20px">Growth Inspector</div><h2>${subject}</h2><p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px">Continue securely</a></p><p style="color:#64748b;font-size:13px">If you did not request this, you can ignore this email.</p></div>`;
+  const subject = labels[action] ?? "Continue with Growth Inspector";
+  const text = `${subject}\n\nUse this secure link to continue:\n${link}\n\nIf you did not request this, you can ignore this email.`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><div style="font-weight:700;font-size:20px">Growth Inspector</div><h2>${subject}</h2><p>Use the secure button below to continue.</p><p><a href="${link}" style="display:inline-block;padding:12px 18px;background:#10b981;color:#fff;text-decoration:none;border-radius:8px">Continue securely</a></p><p style="color:#64748b;font-size:13px">This email does not contain a sign-in code. If you did not request this, you can ignore it.</p></div>`;
   return { subject, text, html };
 }
 
 export async function POST(request: Request) {
   const body = await request.text();
   try {
-    if (!verifySignature(body, request.headers)) {
-      return Response.json({ error: "Invalid webhook signature" }, { status: 401 });
-    }
+    if (!verifySignature(body, request.headers)) return Response.json({ error: "Invalid webhook signature" }, { status: 401 });
 
     const payload = JSON.parse(body) as {
       user?: { email?: string };
-      email_data?: { token?: string; token_hash?: string; email_action_type?: string };
+      email_data?: { token_hash?: string; email_action_type?: string };
     };
     const to = payload.user?.email?.trim();
     const data = payload.email_data;
-    if (!to || !data?.email_action_type) {
-      return Response.json({ error: "Invalid email hook payload" }, { status: 400 });
-    }
+    if (!to || !data?.email_action_type) return Response.json({ error: "Invalid email hook payload" }, { status: 400 });
 
-    const content = emailContent(data.email_action_type, data.token ?? "", data.token_hash ?? "");
+    const content = emailContent(data.email_action_type, data.token_hash ?? "");
     const sent = await sendEmail({ to, subject: content.subject, text: content.text, html: content.html });
     if (!sent) return Response.json({ error: "App email transport is not configured" }, { status: 503 });
     return Response.json({});
