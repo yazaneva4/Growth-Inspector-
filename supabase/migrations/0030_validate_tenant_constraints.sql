@@ -1,0 +1,4 @@
+alter table public.conversations validate constraint conversations_account_org_fk;
+alter table public.messages validate constraint messages_conversation_org_fk;
+alter table public.escalations validate constraint escalations_conversation_org_fk;
+alter table public.ai_operator_messages validate constraint ai_operator_messages_conversation_org_fk;
