@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Provider = "auto" | "openai" | "anthropic" | "zai" | "gemini";
+type Provider = "auto" | "openai" | "anthropic" | "zai" | "gemini" | "openrouter";
 type RealProvider = Exclude<Provider, "auto">;
 type Model = { id: string; name: string };
 type ProviderState = { configured: boolean; models: Model[] };
@@ -12,11 +12,17 @@ type Message = { id: string; role: "user" | "assistant"; content: string; provid
 type Conversation = { id: string; title: string; messages: Message[]; archived: boolean; updatedAt: number };
 type ApiConversation = { id: string; title: string; archived: boolean; updated_at: string; ai_operator_messages?: Array<{ id: string; role: "user" | "assistant"; content: string; provider?: RealProvider | null; model?: string | null; created_at: string }> };
 
-const LABEL: Record<RealProvider, string> = { openai: "GPT / OpenAI", anthropic: "Anthropic / Claude", zai: "z.ai / GLM", gemini: "Google / Gemini" };
-const REAL_PROVIDERS: RealProvider[] = ["openai", "anthropic", "zai", "gemini"];
-const PROVIDER_KEY = "growth-ai-provider-v4";
-const MODEL_KEY = (provider: RealProvider) => `growth-ai-model-${provider}-v4`;
-const EMPTY: Providers = { openai: { configured: false, models: [] }, anthropic: { configured: false, models: [] }, zai: { configured: false, models: [] }, gemini: { configured: false, models: [] } };
+const LABEL: Record<RealProvider, string> = { openai: "GPT / OpenAI", anthropic: "Anthropic / Claude", zai: "z.ai / GLM", gemini: "Google / Gemini", openrouter: "OpenRouter" };
+const REAL_PROVIDERS: RealProvider[] = ["openai", "anthropic", "zai", "gemini", "openrouter"];
+const PROVIDER_KEY = "growth-ai-provider-v5";
+const MODEL_KEY = (provider: RealProvider) => `growth-ai-model-${provider}-v5`;
+const EMPTY: Providers = {
+  openai: { configured: false, models: [] },
+  anthropic: { configured: false, models: [] },
+  zai: { configured: false, models: [] },
+  gemini: { configured: false, models: [] },
+  openrouter: { configured: false, models: [] },
+};
 
 function makeId() { return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 function titleFrom(text: string) { const value = text.replace(/\s+/g, " ").trim(); return value.length > 60 ? `${value.slice(0, 60)}…` : value || "New conversation"; }
@@ -51,6 +57,7 @@ export function GrowthAiChat() {
       setChats(next); const current = activeIdRef.current; const selected = current && next.some((c: Conversation) => c.id === current) ? current : next[0].id; if (selectFirst || !current) { activeIdRef.current = selected; setActiveId(selected); }
     } catch (err) { setError(err instanceof Error ? err.message : "Could not load saved conversations."); }
   }
+
   useEffect(() => { const saved = localStorage.getItem(PROVIDER_KEY) as Provider | null; if (saved === "auto" || (saved && REAL_PROVIDERS.includes(saved as RealProvider))) setProvider(saved); void refreshModels(); void refreshChats(true); const supabase = createClient(); const channel = supabase.channel(`growth-ai-${makeId()}`).on("postgres_changes", { event: "*", schema: "public", table: "ai_operator_conversations" }, () => void refreshChats()).on("postgres_changes", { event: "*", schema: "public", table: "ai_operator_messages" }, () => void refreshChats()).subscribe(); return () => { void supabase.removeChannel(channel); }; }, []);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { if (provider === "auto") { setModel("auto"); return; } const saved = localStorage.getItem(MODEL_KEY(provider)); const models = providers[provider]?.models ?? []; const next = saved && models.some((m) => m.id === saved) && !unavailable[`${provider}:${saved}`] ? saved : models.find((m) => !unavailable[`${provider}:${m.id}`])?.id ?? ""; setModel(next); if (next) localStorage.setItem(MODEL_KEY(provider), next); }, [provider, providers, unavailable]);
@@ -81,12 +88,21 @@ export function GrowthAiChat() {
       await api({ action: "message", conversationId: current.id, role: "user", content: value });
       const res = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal: value, provider, model: provider === "auto" ? "auto" : model, history }) });
       const data = await res.json().catch(() => null);
-      if (!res.ok) { if (data?.temporaryUnavailable) { const key = `${data.provider ?? provider}:${data.model ?? model}`; setUnavailable((v) => ({ ...v, [key]: true })); setError(`${LABEL[data?.provider as RealProvider] ?? "AI provider"} · ${data?.model ?? model} is temporarily unavailable. Auto will use another configured model on the next request.`); return; } throw new Error(data?.error || "Growth AI could not answer."); }
+      if (!res.ok) {
+        if (data?.temporaryUnavailable) {
+          const key = `${data.provider ?? provider}:${data.model ?? model}`;
+          setUnavailable((v) => ({ ...v, [key]: true }));
+          setError(`${LABEL[data?.provider as RealProvider] ?? "AI provider"} · ${data?.model ?? model} is temporarily unavailable. Auto will use another configured model on the next request.`);
+          return;
+        }
+        throw new Error(data?.error || "Growth AI could not answer.");
+      }
       await api({ action: "message", conversationId: current.id, role: "assistant", content: data?.answer || "No answer returned.", provider: data?.provider, model: data?.model, steps: Array.isArray(data?.steps) ? data.steps : [] });
       await refreshChats();
     } catch (err) { setError(err instanceof Error ? err.message : "Something went wrong."); }
     finally { setBusy(false); requestAnimationFrame(() => inputRef.current?.focus()); }
   }
+
   function submit(e: FormEvent<HTMLFormElement>) { e.preventDefault(); void send(input); }
   const providerName = provider === "auto" ? "⚡ Auto — all configured providers" : LABEL[provider];
   const modelLabel = provider === "auto" ? `Auto · ${allModels.length} available models across ${configuredProviders.length} API providers` : model || "No model selected";
