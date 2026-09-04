@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gemini } from "./gemini";
 import { zaiConfigured } from "./zai";
+import { openrouterConfigured, OPENROUTER_MODEL_A, OPENROUTER_MODEL_B, openrouterChatText } from "./openrouter";
 import { getAnalytics } from "@/lib/analytics";
 import { generateTrendRadar } from "@/lib/ai/trends";
 import { sendEmail } from "@/lib/email/send";
 
-export type AgentProvider = "openai" | "anthropic" | "zai" | "gemini";
+export type AgentProvider = "openai" | "anthropic" | "zai" | "gemini" | "openrouter";
 export type AgentSelection = AgentProvider | "auto";
 export type AgentModel = { id: string; name: string };
 export type AgentProviderState = { configured: boolean; models: AgentModel[] };
@@ -18,6 +19,11 @@ const ZAI_MODELS: AgentModel[] = [
   ["glm-4.7-flash", "GLM-4.7 Flash"], ["glm-4.7-flashx", "GLM-4.7 FlashX"], ["glm-4.6", "GLM-4.6"],
   ["glm-4.5", "GLM-4.5"], ["glm-4.5-air", "GLM-4.5 Air"], ["glm-4.5-flash", "GLM-4.5 Flash"],
 ].map(([id, name]) => ({ id, name }));
+
+const OPENROUTER_MODELS: AgentModel[] = [
+  { id: OPENROUTER_MODEL_A, name: "Open Router A — GPT-OSS 20B" },
+  { id: OPENROUTER_MODEL_B, name: "Open Router B — Gemma 4 31B" },
+];
 
 export const TOOL_DECLARATIONS = [
   { name: "get_analytics_summary", description: "Get workspace conversation analytics for a recent window.", parameters: { type: "object", properties: { days: { type: "number" } } } },
@@ -56,6 +62,7 @@ function fallbackModels(provider: AgentProvider): AgentModel[] {
   if (provider === "openai") return ["gpt-5.6", "gpt-5.5", "gpt-5.4"].map((id) => ({ id, name: id }));
   if (provider === "anthropic") return ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"].map((id) => ({ id, name: id }));
   if (provider === "gemini") return ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-pro", "gemini-2.5-flash"].map((id) => ({ id, name: id }));
+  if (provider === "openrouter") return OPENROUTER_MODELS;
   return ZAI_MODELS;
 }
 
@@ -67,6 +74,7 @@ async function buildCatalog(): Promise<Record<AgentProvider, AgentProviderState>
     anthropic: { configured: Boolean(process.env.ANTHROPIC_API_KEY), models: fallbackModels("anthropic") },
     zai: { configured: zaiConfigured(), models: ZAI_MODELS },
     gemini: { configured: Boolean(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY), models: fallbackModels("gemini") },
+    openrouter: { configured: openrouterConfigured(), models: OPENROUTER_MODELS },
   };
   await Promise.all([
     (async () => { if (!value.openai.configured) return; try { const r = await fetch("https://api.openai.com/v1/models", { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, cache: "no-store" }); const d = await r.json(); const ids = Array.isArray(d?.data) ? d.data.map((x: { id?: string }) => x.id).filter((x: unknown): x is string => typeof x === "string" && /^gpt-/.test(x)) : []; if (ids.length) value.openai.models = ids.sort().map((id: string) => ({ id, name: id })); } catch {} })(),
@@ -95,13 +103,14 @@ function taskScores(goal: string, provider: AgentProvider, model: string) {
   if (provider === "openai") score += coding || reasoning ? 7 : 3;
   if (provider === "gemini") score += quick || analytics ? 7 : 2;
   if (provider === "zai") score += coding ? 5 : 1;
+  if (provider === "openrouter") score += coding || reasoning ? 6 : 2;
   if (/flash|haiku|air/.test(m)) score += 3;
   return score;
 }
 
 function autoCandidates(goal: string, catalog: Record<AgentProvider, AgentProviderState>) {
   const candidates: Array<{ provider: AgentProvider; model: string; score: number }> = [];
-  for (const provider of ["openai", "anthropic", "zai", "gemini"] as AgentProvider[]) {
+  for (const provider of ["openai", "anthropic", "zai", "gemini", "openrouter"] as AgentProvider[]) {
     if (!catalog[provider].configured) continue;
     for (const model of catalog[provider].models) candidates.push({ provider, model: model.id, score: taskScores(goal, provider, model.id) });
   }
@@ -129,6 +138,9 @@ async function textResponse(provider: AgentProvider, model: string, goal: string
     const key = process.env.ZAI_API_KEY; if (!key) throw new Error("ZAI_API_KEY is not configured.");
     const r = await fetch("https://api.z.ai/api/paas/v4/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model, messages: [{ role: "system", content: SYSTEM(orgName) }, ...history.slice(-16), { role: "user", content: `${toolContext ? `Workspace tool results:\n${toolContext}\n` : ""}${goal}` }] }) });
     const d = await r.json().catch(() => null); if (!r.ok) throw new Error(d?.error?.message || `z.ai request failed: ${r.status}`); return String(d?.choices?.[0]?.message?.content || "(no answer produced)");
+  }
+  if (provider === "openrouter") {
+    return openrouterChatText({ model, system: SYSTEM(orgName), user: `${toolContext ? `Workspace tool results:\n${toolContext}\n` : ""}${historyText(history)}\nUser: ${goal}` });
   }
   const ai = gemini(); const r = await ai.models.generateContent({ model, contents: prompt }); return r.text || "(no answer produced)";
 }
@@ -168,7 +180,7 @@ export async function runGrowthAgent(goal: string, ctx: { db: SupabaseClient; or
     throw lastError instanceof Error ? lastError : new Error("All Auto models are temporarily unavailable.");
   }
 
-  const provider: AgentProvider = ["openai", "anthropic", "zai", "gemini"].includes(options?.provider ?? "") ? options!.provider as AgentProvider : "gemini";
+  const provider: AgentProvider = ["openai", "anthropic", "zai", "gemini", "openrouter"].includes(options?.provider ?? "") ? options!.provider as AgentProvider : "gemini";
   if (!catalog[provider].configured) throw new Error(`${provider} is not configured on the server.`);
   const model = chosen(provider, options?.model, catalog);
   if (!model) throw new Error(`No models are available for ${provider}.`);
