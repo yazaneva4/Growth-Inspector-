@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 
 async function getDbAndOrg() {
   const ctx = await getCurrentContext();
-  const db = ctx.isDemo ? createServiceClient() : await createClient();
+  if (ctx.isDemo || !ctx.userId) return null;
+  const db = await createClient();
   const { data: org } = await db.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
   return { db, org };
 }
@@ -15,7 +16,9 @@ function titleFromMessage(content: string) {
 }
 
 export async function GET() {
-  const { db, org } = await getDbAndOrg();
+  const context = await getDbAndOrg();
+  if (!context) return NextResponse.json({ error: "sign in required" }, { status: 401 });
+  const { db, org } = context;
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
   const { data, error } = await db.from("ai_operator_conversations").select("id,title,archived,created_at,updated_at,ai_operator_messages(id,role,content,provider,model,steps,created_at)").eq("org_id", org.id).order("updated_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -23,9 +26,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const { db, org } = await getDbAndOrg();
+  const context = await getDbAndOrg();
+  if (!context) return NextResponse.json({ error: "sign in required" }, { status: 401 });
+  const { db, org } = context;
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
+  const body = await req.json().catch(() => null);
   const action = body?.action;
 
   if (action === "create") {
