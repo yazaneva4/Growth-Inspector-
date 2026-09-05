@@ -20,9 +20,45 @@ export async function GET() {
   if (!context) return NextResponse.json({ error: "sign in required" }, { status: 401 });
   const { db, org } = context;
   if (!org) return NextResponse.json({ error: "no workspace found" }, { status: 404 });
-  const { data, error } = await db.from("ai_operator_conversations").select("id,title,archived,created_at,updated_at,ai_operator_messages(id,role,content,provider,model,steps,created_at)").eq("org_id", org.id).order("updated_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ conversations: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
+
+  // Do not embed ai_operator_messages here. The database can contain more
+  // than one relationship between these tables (for example through tenant
+  // keys), which makes PostgREST reject the embed as ambiguous. Fetch the two
+  // tables independently and join them by conversation_id in application code.
+  const { data: conversations, error: conversationsError } = await db
+    .from("ai_operator_conversations")
+    .select("id,title,archived,created_at,updated_at")
+    .eq("org_id", org.id)
+    .order("updated_at", { ascending: false });
+  if (conversationsError) return NextResponse.json({ error: conversationsError.message }, { status: 500 });
+
+  const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
+  let messages: Array<{ id: string; conversation_id: string; role: "user" | "assistant"; content: string; provider: string | null; model: string | null; steps: unknown; created_at: string }> = [];
+
+  if (conversationIds.length) {
+    const { data, error } = await db
+      .from("ai_operator_messages")
+      .select("id,conversation_id,role,content,provider,model,steps,created_at")
+      .eq("org_id", org.id)
+      .in("conversation_id", conversationIds)
+      .order("created_at", { ascending: true });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    messages = (data ?? []) as typeof messages;
+  }
+
+  const byConversation = new Map<string, typeof messages>();
+  for (const message of messages) {
+    const existing = byConversation.get(message.conversation_id);
+    if (existing) existing.push(message);
+    else byConversation.set(message.conversation_id, [message]);
+  }
+
+  const result = (conversations ?? []).map((conversation) => ({
+    ...conversation,
+    ai_operator_messages: byConversation.get(conversation.id) ?? [],
+  }));
+
+  return NextResponse.json({ conversations: result }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
@@ -70,9 +106,26 @@ export async function POST(req: NextRequest) {
   if (action === "delete") {
     const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
     if (!conversationId) return NextResponse.json({ error: "invalid conversation" }, { status: 400 });
-    const { error } = await db.from("ai_operator_conversations").delete().eq("id", conversationId).eq("org_id", org.id);
+
+    // Delete child messages explicitly first. This keeps Delete reliable even
+    // if the production database was created with an older FK definition.
+    const { error: messagesError } = await db
+      .from("ai_operator_messages")
+      .delete()
+      .eq("conversation_id", conversationId)
+      .eq("org_id", org.id);
+    if (messagesError) return NextResponse.json({ error: messagesError.message }, { status: 500 });
+
+    const { data: deleted, error } = await db
+      .from("ai_operator_conversations")
+      .delete()
+      .eq("id", conversationId)
+      .eq("org_id", org.id)
+      .select("id")
+      .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    if (!deleted) return NextResponse.json({ error: "conversation not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, deletedId: conversationId });
   }
 
   return NextResponse.json({ error: "unknown action" }, { status: 400 });
