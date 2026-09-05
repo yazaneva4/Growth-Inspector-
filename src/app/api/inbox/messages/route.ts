@@ -18,11 +18,16 @@ export async function POST(req: NextRequest) {
   if (!org) return NextResponse.json({ error: "Workspace not found." }, { status: 404 });
 
   const db = createServiceClient();
-  const { data: conversation } = await db.from("conversations").select("id, org_id, platform, customer_email, customer_handle, email_subject").eq("id", conversationId).eq("org_id", org.id).maybeSingle();
+  const { data: conversation } = await db.from("conversations").select("id, org_id, platform, customer_email, customer_handle, email_subject, thread_key").eq("id", conversationId).eq("org_id", org.id).maybeSingle();
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
   const recipient = conversation.customer_email || (conversation.platform === "email" ? conversation.customer_handle : null);
   if (conversation.platform === "email" && !recipient) return NextResponse.json({ error: "This email conversation has no customer email identity." }, { status: 400 });
+
+  const { data: latestInbound } = conversation.platform === "email"
+    ? await db.from("messages").select("external_message_id").eq("conversation_id", conversation.id).eq("direction", "inbound").not("external_message_id", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle()
+    : { data: null };
+  const replyTo = latestInbound?.external_message_id ?? conversation.thread_key ?? undefined;
 
   const { data: message, error } = await db.from("messages").insert({
     org_id: org.id,
@@ -39,7 +44,13 @@ export async function POST(req: NextRequest) {
 
   try {
     if (conversation.platform === "email") {
-      await sendEmail({ to: recipient!, subject: conversation.email_subject?.startsWith("Re:") ? conversation.email_subject : `Re: ${conversation.email_subject || "Your Growth Inspector conversation"}`, text });
+      await sendEmail({
+        to: recipient!,
+        subject: conversation.email_subject?.startsWith("Re:") ? conversation.email_subject : `Re: ${conversation.email_subject || "Your Growth Inspector conversation"}`,
+        text,
+        inReplyTo: replyTo,
+        references: replyTo,
+      });
     } else {
       return NextResponse.json({ error: "This conversation channel does not yet have a human-send adapter." }, { status: 501 });
     }
