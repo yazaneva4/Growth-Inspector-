@@ -89,17 +89,36 @@ export function GrowthAiChat() {
 
   async function send(text: string) {
     const value = text.trim();
-    if (!value || busy || !active || (provider !== "auto" && (!model || !providers[provider]?.configured))) return;
+    if (!value || busy) return;
     if (provider === "auto" && !configuredProviders.length) { setError("No configured AI provider is available for Auto mode."); return; }
-    const current = active;
+    if (provider !== "auto" && (!model || !providers[provider]?.configured)) { setError(`${LABEL[provider]} is not ready yet. Choose an available model and try again.`); return; }
+
+    // The old flow silently returned when `active` was null. On a fresh/slow
+    // load that made both Send and Enter appear completely broken. Create the
+    // conversation synchronously and continue the same send operation.
+    let current = active;
+    if (!current) {
+      try {
+        const created = await api({ action: "create" });
+        if (!created?.conversation?.id) throw new Error("Could not create a conversation.");
+        current = fromApi({ ...created.conversation, ai_operator_messages: [] });
+        activeIdRef.current = current.id;
+        setActiveId(current.id);
+        setChats((all) => [current!, ...all.filter((c) => c.id !== current!.id)]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not start a conversation.");
+        return;
+      }
+    }
+
     const pendingId = makeId();
     const pendingUser: Message = { id: pendingId, role: "user", content: value, createdAt: Date.now(), status: "pending" };
     const history = historyForModel([...current.messages, pendingUser]);
-    setChats((all) => all.map((c) => c.id === current.id ? { ...c, messages: [...c.messages, pendingUser], title: c.messages.length ? c.title : titleFrom(value), updatedAt: Date.now(), archived: false } : c));
+    setChats((all) => all.map((c) => c.id === current!.id ? { ...c, messages: [...c.messages, pendingUser], title: c.messages.length ? c.title : titleFrom(value), updatedAt: Date.now(), archived: false } : c));
     setInput(""); setBusy(true); setError(null);
     try {
       try { await api({ action: "message", conversationId: current.id, role: "user", content: value }); }
-      catch (err) { setChats((all) => all.map((c) => c.id === current.id ? { ...c, messages: c.messages.map((m) => m.id === pendingId ? { ...m, status: "failed" } : m) } : c)); throw err; }
+      catch (err) { setChats((all) => all.map((c) => c.id === current!.id ? { ...c, messages: c.messages.map((m) => m.id === pendingId ? { ...m, status: "failed" } : m) } : c)); throw err; }
 
       const res = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal: value, provider, model: provider === "auto" ? "auto" : model, history }) });
       const data = await res.json().catch(() => null);
@@ -107,7 +126,7 @@ export function GrowthAiChat() {
         if (data?.temporaryUnavailable) {
           const key = `${data.provider ?? provider}:${data.model ?? model}`;
           setUnavailable((v) => ({ ...v, [key]: true }));
-          setChats((all) => all.map((c) => c.id === current.id ? { ...c, messages: c.messages.map((m) => m.id === pendingId ? { ...m, status: "failed" } : m) } : c));
+          setChats((all) => all.map((c) => c.id === current!.id ? { ...c, messages: c.messages.map((m) => m.id === pendingId ? { ...m, status: "failed" } : m) } : c));
           setError(`${LABEL[data?.provider as RealProvider] ?? "AI provider"} · ${data?.model ?? model} is temporarily unavailable. Auto will use another configured model on the next request.`);
           return;
         }
@@ -118,14 +137,14 @@ export function GrowthAiChat() {
       const assistant: Message = { id: makeId(), role: "assistant", content: answer, provider: data?.provider, model: data?.model, createdAt: Date.now() };
       try {
         await api({ action: "message", conversationId: current.id, role: "assistant", content: answer, provider: data?.provider, model: data?.model, steps: Array.isArray(data?.steps) ? data.steps : [] });
-        setChats((all) => all.map((c) => c.id === current.id ? { ...c, messages: [...c.messages.map((m) => m.id === pendingId ? { ...m, status: undefined } : m), assistant] } : c));
+        setChats((all) => all.map((c) => c.id === current!.id ? { ...c, messages: [...c.messages.map((m) => m.id === pendingId ? { ...m, status: undefined } : m), assistant] } : c));
         await refreshChats();
       } catch (persistErr) {
-        setChats((all) => all.map((c) => c.id === current.id ? { ...c, messages: [...c.messages.map((m) => m.id === pendingId ? { ...m, status: undefined } : m), { ...assistant, status: "unsaved" }] } : c));
+        setChats((all) => all.map((c) => c.id === current!.id ? { ...c, messages: [...c.messages.map((m) => m.id === pendingId ? { ...m, status: undefined } : m), { ...assistant, status: "unsaved" }] } : c));
         setError(`Growth AI answered, but the answer could not be saved. ${persistErr instanceof Error ? persistErr.message : "Try again later."}`);
       }
     } catch (err) {
-      setChats((all) => all.map((c) => c.id === current.id ? { ...c, messages: c.messages.map((m) => m.id === pendingId ? { ...m, status: "failed" } : m) } : c));
+      setChats((all) => all.map((c) => c.id === current!.id ? { ...c, messages: c.messages.map((m) => m.id === pendingId ? { ...m, status: "failed" } : m) } : c));
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally { setBusy(false); requestAnimationFrame(() => inputRef.current?.focus()); }
   }
