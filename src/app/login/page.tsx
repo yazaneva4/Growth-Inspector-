@@ -51,6 +51,8 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState(rememberedEmail);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(
     () => typeof window !== "undefined" && localStorage.getItem(REMEMBER_KEY) === "1",
@@ -226,14 +228,25 @@ export default function LoginPage() {
 
   async function signUp() {
     const normalizedEmail = email.trim().toLowerCase();
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+
     if (!normalizedEmail) throw new Error("Enter your email address first.");
+    if (!trimmedName) throw new Error("Enter your name.");
+    if (!trimmedPhone) throw new Error("Enter your phone number.");
     if (password.length < 8) throw new Error("Password must be at least 8 characters.");
 
     const supabase = createClient();
     const { data, error: authError } = await supabase.auth.signUp({
       email: normalizedEmail,
       password,
-      options: { emailRedirectTo: `${appOrigin()}/auth/callback?next=/dashboard/inbox` },
+      options: {
+        emailRedirectTo: `${appOrigin()}/auth/callback?next=/dashboard/inbox`,
+        data: {
+          full_name: trimmedName,
+          phone: trimmedPhone,
+        },
+      },
     });
     if (authError) throw authError;
 
@@ -242,7 +255,7 @@ export default function LoginPage() {
     if (data.session) {
       try {
         await registerPasskey();
-        setNotice("Account created. Windows Hello or fingerprint is now set up for this device.");
+        setNotice("Account created. Windows Hello, fingerprint, or another passkey is now set up for this device.");
       } catch (passkeyError) {
         setNotice(
           `Account created. Passkey setup was skipped: ${passkeyError instanceof Error ? passkeyError.message : "not available"}. You can use your password.`
@@ -253,7 +266,7 @@ export default function LoginPage() {
       return;
     }
 
-    setNotice("Account created. Check your email for the secure confirmation link, then sign in with your password.");
+    setNotice("Account created. Check your email for the secure confirmation link, then sign in with your password. You can set up Windows Hello, fingerprint, or a passkey after signing in.");
   }
 
   function clearMessages() {
@@ -310,7 +323,7 @@ export default function LoginPage() {
               ? "Enter your email to continue"
               : mode === "signin"
                 ? "Choose how you want to sign in"
-                : "Finish creating your account with a password"}
+                : "Add your details, password, and secure sign-in method"}
           </p>
         </div>
 
@@ -436,6 +449,26 @@ export default function LoginPage() {
             ) : (
               <form onSubmit={submitPassword} className="space-y-4">
                 <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Full name"
+                  autoComplete="name"
+                  autoFocus
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Phone number"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <input
                   type="password"
                   required
                   minLength={8}
@@ -462,6 +495,9 @@ export default function LoginPage() {
                 >
                   {busy ? "Creating account…" : "Create account"}
                 </button>
+                <p className="text-center text-xs text-slate-500">
+                  After your account is created, you can use Windows Hello, fingerprint, or a passkey on supported devices.
+                </p>
               </form>
             )}
           </div>
