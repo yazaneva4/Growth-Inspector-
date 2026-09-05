@@ -105,6 +105,8 @@ export default function LoginPage() {
       if (turnstileWidgetId.current && window.turnstile) {
         window.turnstile.reset(turnstileWidgetId.current);
       }
+      turnstileWidgetId.current = null;
+      setTurnstileToken(null);
     };
   }, [step, mode, turnstileReady]);
 
