@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { gemini } from "./gemini";
 import { zaiConfigured } from "./zai";
-import { openrouterConfigured, OPENROUTER_MODEL_A, OPENROUTER_MODEL_B, openrouterChatText } from "./openrouter";
+import { openrouterConfigured, OPENROUTER_MODEL_A, openrouterChatText } from "./openrouter";
 import { getAnalytics } from "@/lib/analytics";
 import { generateTrendRadar } from "@/lib/ai/trends";
 
@@ -20,8 +20,7 @@ const ZAI_MODELS: AgentModel[] = [
 ].map(([id, name]) => ({ id, name }));
 
 const OPENROUTER_MODELS: AgentModel[] = [
-  { id: OPENROUTER_MODEL_A, name: "Open Router A — GPT-OSS 20B" },
-  { id: OPENROUTER_MODEL_B, name: "Open Router B — Gemma 4 31B" },
+  { id: OPENROUTER_MODEL_A, name: "OpenRouter Free Models Router" },
 ];
 
 /** Only tools that are actually dispatched by this endpoint are advertised. */
