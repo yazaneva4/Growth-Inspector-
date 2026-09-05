@@ -1,26 +1,28 @@
-/** OpenRouter — optional responder fallback tiers, slotted between/after
- *  Claude and Gemini. OpenAI-compatible API. Each tier's model slug is
- *  configurable via its own env var so the exact string can be pasted from
- *  openrouter.ai. Requires OPENROUTER_API_KEY (shared across all tiers).
+/** OpenRouter integration for Growth AI.
  *
- *  NOTE: free ("...:free") endpoints may log prompts/outputs for training —
- *  only use one for real customer data if it's explicitly zero-data-retention. */
+ * The primary OpenRouter option is OpenRouter's official Free Models Router
+ * (`openrouter/free`). It dynamically selects an eligible free model for each
+ * request, so Growth AI does not need a hard-coded list of free model slugs.
+ *
+ * Free-model responses should not be used for sensitive customer data unless
+ * the selected OpenRouter/provider policy is appropriate for that data.
+ */
 
-/** Tier A — tried right after Claude fails, before Gemini. */
+/** Tier A — OpenRouter's official free-model router. */
 export const OPENROUTER_MODEL_A =
-  process.env.OPENROUTER_MODEL_A?.trim() || "openai/gpt-oss-20b:free";
+  process.env.OPENROUTER_MODEL_A?.trim() || "openrouter/free";
 
-/** Tier B — final fallback, tried right after Gemini fails. */
+/** Tier B — explicit free-model fallback if the router itself is unavailable. */
 export const OPENROUTER_MODEL_B =
-  process.env.OPENROUTER_MODEL_B?.trim() || "google/gemma-4-31b-it:free";
+  process.env.OPENROUTER_MODEL_B?.trim() || "openai/gpt-oss-20b:free";
 
 export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
 
 /** Chat completion returning parsed JSON. Asks for a JSON object (works
- *  across models that don't support strict json_schema) and parses the
- *  first JSON block from the response defensively. */
+ * across models that don't support strict json_schema) and parses the
+ * first JSON block from the response defensively. */
 export async function openrouterChatJSON<T>(opts: {
   model: string;
   system: string;
@@ -31,7 +33,7 @@ export async function openrouterChatJSON<T>(opts: {
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://growth-inspector-zl9k.vercel.app",
+      "HTTP-Referer": "https://growth-inspector-yazaneva4-3470s-projects.vercel.app",
       "X-Title": "Growth Inspector",
     },
     body: JSON.stringify({
@@ -55,8 +57,7 @@ export async function openrouterChatJSON<T>(opts: {
   return JSON.parse(match ? match[0] : content) as T;
 }
 
-/** Plain-text chat completion — for free-form copy (e.g. a welcome message)
- *  where no JSON structure is needed. */
+/** Plain-text chat completion — for Growth AI free-form responses. */
 export async function openrouterChatText(opts: {
   model: string;
   system: string;
@@ -67,7 +68,7 @@ export async function openrouterChatText(opts: {
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://growth-inspector-zl9k.vercel.app",
+      "HTTP-Referer": "https://growth-inspector-yazaneva4-3470s-projects.vercel.app",
       "X-Title": "Growth Inspector",
     },
     body: JSON.stringify({
