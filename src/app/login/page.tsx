@@ -1,16 +1,31 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/logo";
 
-type Mode = "signin" | "signup";
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (element: HTMLElement, options: {
+        sitekey: string;
+        callback: (token: string) => void;
+        "error-callback": () => void;
+        "expired-callback": () => void;
+      }) => string;
+      reset: (widgetId?: string) => void;
+    };
+  }
+}
 
+type Mode = "signin" | "signup";
 type LoginStep = "email" | "method";
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true";
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 const REMEMBER_KEY = "gi_remember_me";
 const REMEMBERED_EMAIL_KEY = "gi_remembered_email";
 const PRODUCTION_APP_URL = "https://growth-inspector-yazaneva4-3470s-projects.vercel.app";
@@ -31,6 +46,8 @@ function rememberedEmail(): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetId = useRef<string | null>(null);
   const [mode, setMode] = useState<Mode>("signin");
   const [step, setStep] = useState<LoginStep>("email");
   const [email, setEmail] = useState(rememberedEmail);
@@ -42,6 +59,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState(false);
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   useEffect(() => {
     const invitedEmail = new URLSearchParams(window.location.search).get("email");
@@ -55,6 +74,39 @@ export default function LoginPage() {
         typeof navigator.credentials?.get === "function",
     );
   }, []);
+
+  useEffect(() => {
+    if (step !== "method" || mode !== "signin" || !turnstileReady || !turnstileSiteKey || !turnstileRef.current || !window.turnstile) {
+      return;
+    }
+
+    if (turnstileWidgetId.current) {
+      window.turnstile.reset(turnstileWidgetId.current);
+      return;
+    }
+
+    turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: turnstileSiteKey,
+      callback: (token) => {
+        setTurnstileToken(token);
+        setError(null);
+      },
+      "error-callback": () => {
+        setTurnstileToken(null);
+        setError("Bot verification could not be completed. Please try again.");
+      },
+      "expired-callback": () => {
+        setTurnstileToken(null);
+        setError("Bot verification expired. Please complete it again.");
+      },
+    });
+
+    return () => {
+      if (turnstileWidgetId.current && window.turnstile) {
+        window.turnstile.reset(turnstileWidgetId.current);
+      }
+    };
+  }, [step, mode, turnstileReady]);
 
   function persistRememberedEmail() {
     if (rememberMe) {
@@ -83,6 +135,31 @@ export default function LoginPage() {
     return message;
   }
 
+  async function verifyTurnstile() {
+    if (!turnstileSiteKey) {
+      throw new Error("Bot verification is not configured yet. Please contact the site administrator.");
+    }
+    if (!turnstileToken) {
+      throw new Error("Please complete the bot verification first.");
+    }
+
+    const response = await fetch("/api/auth/turnstile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "cf-turnstile-response": turnstileToken }),
+    });
+
+    const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+    setTurnstileToken(null);
+    if (turnstileWidgetId.current && window.turnstile) {
+      window.turnstile.reset(turnstileWidgetId.current);
+    }
+
+    if (!response.ok || !result?.ok) {
+      throw new Error(result?.error ?? "Bot verification failed. Please try again.");
+    }
+  }
+
   async function signInWithGoogle() {
     setError(null);
     setNotice(null);
@@ -106,6 +183,7 @@ export default function LoginPage() {
       if (!passkeySupported) {
         throw new Error("This browser does not support passkeys. You can still sign in with your password.");
       }
+      await verifyTurnstile();
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPasskey();
       if (authError) throw authError;
@@ -131,6 +209,7 @@ export default function LoginPage() {
     if (!normalizedEmail) throw new Error("Enter your email address first.");
     if (password.length < 8) throw new Error("Password must be at least 8 characters.");
 
+    await verifyTurnstile();
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
@@ -194,6 +273,7 @@ export default function LoginPage() {
   function goBackToEmail() {
     clearMessages();
     setPassword("");
+    setTurnstileToken(null);
     setStep("email");
   }
 
@@ -213,6 +293,12 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-white px-6 text-slate-950">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        async
+        defer
+        onLoad={() => setTurnstileReady(true)}
+      />
       <div className="w-full max-w-sm space-y-8">
         <div className="flex justify-center"><Logo variant="light" size={56} /></div>
         <div className="text-center">
@@ -340,6 +426,10 @@ export default function LoginPage() {
                 >
                   Use a passkey
                 </button>
+
+                <div className="flex justify-center pt-1">
+                  <div ref={turnstileRef} className="cf-turnstile" />
+                </div>
               </div>
             ) : (
               <form onSubmit={submitPassword} className="space-y-4">
