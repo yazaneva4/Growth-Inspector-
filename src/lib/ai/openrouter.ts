@@ -12,9 +12,6 @@
 /** OpenRouter's official Free Models Router. */
 export const OPENROUTER_MODEL_A = "openrouter/free";
 
-/** Backward-compatible alias: the router itself is the only free tier. */
-export const OPENROUTER_MODEL_B = "openrouter/free";
-
 export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
