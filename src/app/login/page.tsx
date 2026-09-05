@@ -22,7 +22,7 @@ declare global {
 }
 
 type Mode = "signin" | "signup";
-type LoginStep = "email" | "method";
+type LoginStep = "email" | "method" | "security";
 
 const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true";
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
@@ -63,6 +63,7 @@ export default function LoginPage() {
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [securityConfigured, setSecurityConfigured] = useState(false);
 
   useEffect(() => {
     const invitedEmail = new URLSearchParams(window.location.search).get("email");
@@ -78,7 +79,7 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (step !== "method" || mode !== "signin" || !turnstileReady || !turnstileSiteKey || !turnstileRef.current || !window.turnstile) {
+    if (step !== "method" || !turnstileReady || !turnstileSiteKey || !turnstileRef.current || !window.turnstile) {
       return;
     }
 
@@ -110,7 +111,7 @@ export default function LoginPage() {
       turnstileWidgetId.current = null;
       setTurnstileToken(null);
     };
-  }, [step, mode, turnstileReady]);
+  }, [step, turnstileReady]);
 
   function persistRememberedEmail() {
     if (rememberMe) {
@@ -128,7 +129,7 @@ export default function LoginPage() {
       return "The email or password is incorrect.";
     }
     if (/email_not_confirmed|confirm.*email/i.test(message)) {
-      return "Please confirm your email address, then sign in with your password.";
+      return "This account still requires email confirmation. No verification code is used by Growth Inspector.";
     }
     if (/not found|user.*not.*exist/i.test(message) && mode === "signin") {
       return "No account was found for this email. Create an account first.";
@@ -202,10 +203,11 @@ export default function LoginPage() {
   }
 
   async function registerPasskey() {
-    if (!passkeySupported) return;
+    if (!passkeySupported) return false;
     const supabase = createClient();
     const { error: passkeyError } = await supabase.auth.registerPasskey();
     if (passkeyError) throw passkeyError;
+    return true;
   }
 
   async function signInWithPassword() {
@@ -236,6 +238,8 @@ export default function LoginPage() {
     if (!trimmedPhone) throw new Error("Enter your phone number.");
     if (password.length < 8) throw new Error("Password must be at least 8 characters.");
 
+    await verifyTurnstile();
+
     const supabase = createClient();
     const { data, error: authError } = await supabase.auth.signUp({
       email: normalizedEmail,
@@ -252,21 +256,36 @@ export default function LoginPage() {
 
     persistRememberedEmail();
 
-    if (data.session) {
-      try {
-        await registerPasskey();
-        setNotice("Account created. Windows Hello, fingerprint, or another passkey is now set up for this device.");
-      } catch (passkeyError) {
-        setNotice(
-          `Account created. Passkey setup was skipped: ${passkeyError instanceof Error ? passkeyError.message : "not available"}. You can use your password.`
-        );
-      }
-      router.replace("/dashboard/inbox");
-      router.refresh();
-      return;
+    if (!data.session) {
+      throw new Error("Account creation needs email confirmation in the current Supabase configuration. No verification code is used, but the confirmation link must be enabled before security setup can continue.");
     }
 
-    setNotice("Account created. Check your email for the secure confirmation link, then sign in with your password. You can set up Windows Hello, fingerprint, or a passkey after signing in.");
+    setSecurityConfigured(false);
+    setNotice("Account created. Now configure the secure sign-in methods available on this device.");
+    setStep("security");
+  }
+
+  async function setupSecurity() {
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      if (!passkeySupported) {
+        setSecurityConfigured(false);
+        setNotice("This device does not expose a web passkey authenticator. Your password is ready to use.");
+        router.replace("/dashboard/inbox");
+        router.refresh();
+        return;
+      }
+
+      await registerPasskey();
+      setSecurityConfigured(true);
+      setNotice("Secure device sign-in is configured. Your biometric data and private authenticator key stay with the device; Growth Inspector receives only the authentication result.");
+    } catch (err) {
+      setError(friendlyError(err instanceof Error ? err.message : "Security setup failed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function clearMessages() {
@@ -282,6 +301,13 @@ export default function LoginPage() {
       return;
     }
     setEmail(normalizedEmail);
+    setMode("signin");
+    setStep("method");
+  }
+
+  function startSignup() {
+    clearMessages();
+    setMode("signup");
     setStep("method");
   }
 
@@ -317,13 +343,17 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="flex justify-center"><Logo variant="light" size={56} /></div>
         <div className="text-center">
-          <h1 className="text-xl font-bold">{mode === "signin" ? "Welcome back" : "Create your account"}</h1>
+          <h1 className="text-xl font-bold">
+            {step === "security" ? "Secure your account" : mode === "signin" ? "Welcome back" : "Create your account"}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">
             {step === "email"
               ? "Enter your email to continue"
-              : mode === "signin"
-                ? "Choose how you want to sign in"
-                : "Add your details, password, and secure sign-in method"}
+              : step === "security"
+                ? "Configure the secure sign-in methods available on this device"
+                : mode === "signin"
+                  ? "Choose how you want to sign in"
+                  : "Add your name, phone, email, password, and bot verification"}
           </p>
         </div>
 
@@ -368,15 +398,59 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => {
-                clearMessages();
-                setMode("signup");
-                setStep("method");
-              }}
+              onClick={startSignup}
               disabled={busy}
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
             >
               Create account
+            </button>
+          </div>
+        ) : step === "security" ? (
+          <div className="space-y-5">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="font-semibold">Account details</p>
+              <dl className="mt-3 space-y-2">
+                <div className="flex justify-between gap-4"><dt className="text-slate-500">Email</dt><dd className="truncate font-medium">{email}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-slate-500">Name</dt><dd className="truncate font-medium">{name}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-slate-500">Phone</dt><dd className="truncate font-medium">{phone}</dd></div>
+              </dl>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="font-semibold">Device security</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Growth Inspector uses WebAuthn/passkeys. Your device may present Windows Hello, fingerprint, Touch ID, Face ID, or another supported biometric/device unlock automatically.
+              </p>
+              <p className="mt-3 text-xs text-slate-500">
+                Growth Inspector does not receive or store your fingerprint, Face ID data, Windows Hello secret, or private authenticator key.
+              </p>
+            </div>
+
+            {passkeySupported ? (
+              <button
+                type="button"
+                onClick={setupSecurity}
+                disabled={busy || securityConfigured}
+                className="w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {securityConfigured ? "Device sign-in configured" : busy ? "Setting up secure sign-in…" : "Set up passkey / device unlock"}
+              </button>
+            ) : (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Passkeys are not available in this browser. Your password can still be used to sign in.
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                router.replace("/dashboard/inbox");
+                router.refresh();
+              }}
+              disabled={busy}
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {securityConfigured ? "Continue to Growth Inspector" : "Skip for now"}
             </button>
           </div>
         ) : (
@@ -430,7 +504,7 @@ export default function LoginPage() {
                   disabled={busy || !passkeySupported}
                   className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Use Windows Hello / fingerprint
+                  Use Windows Hello / fingerprint / biometric
                 </button>
 
                 <button
@@ -448,6 +522,15 @@ export default function LoginPage() {
               </div>
             ) : (
               <form onSubmit={submitPassword} className="space-y-4">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  autoComplete="email"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
                 <input
                   type="text"
                   required
@@ -488,6 +571,9 @@ export default function LoginPage() {
                   />
                   Remember me
                 </label>
+                <div className="flex justify-center pt-1">
+                  <div ref={turnstileRef} className="cf-turnstile" />
+                </div>
                 <button
                   type="submit"
                   disabled={busy}
@@ -496,7 +582,7 @@ export default function LoginPage() {
                   {busy ? "Creating account…" : "Create account"}
                 </button>
                 <p className="text-center text-xs text-slate-500">
-                  After your account is created, you can use Windows Hello, fingerprint, or a passkey on supported devices.
+                  After creation, you will get a separate security setup page for passkey/device authentication.
                 </p>
               </form>
             )}
