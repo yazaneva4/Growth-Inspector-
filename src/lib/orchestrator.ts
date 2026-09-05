@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { respondBestAvailable, AIUnavailableError } from "@/lib/ai/responder";
 import { getAdapter, type InboundMessage } from "@/lib/platforms/adapter";
+import { sendEmail } from "@/lib/email/send";
 import type { BrandVoice, Organization, Intent } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -30,7 +31,6 @@ function urgencyFor(intent: Intent, sentiment: string, decision: string): "low" 
 
 export async function handleInbound(inbound: InboundMessage, client?: SupabaseClient) {
   const db = client ?? createServiceClient();
-
   const { data: account } = await db.from("connected_accounts").select("*")
     .eq("platform", inbound.platform).eq("external_id", inbound.accountExternalId).eq("is_active", true).single();
   if (!account) {
@@ -44,9 +44,8 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
   }
 
   let adapter;
-  try {
-    adapter = getAdapter(inbound.platform);
-  } catch (err) {
+  try { adapter = getAdapter(inbound.platform); }
+  catch (err) {
     console.warn("Inbound platform unsupported", inbound.platform, err);
     return { unsupported: true, error: err instanceof Error ? err.message : "Unsupported platform" };
   }
@@ -98,9 +97,7 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
 
   const receivedAt = inbound.receivedAt || new Date().toISOString();
   await db.from("conversations").update({ last_message_at: receivedAt }).eq("id", conversation.id);
-
-  const { data: history } = await db.from("messages").select("author, body")
-    .eq("conversation_id", conversation.id).order("created_at", { ascending: true }).limit(12);
+  const { data: history } = await db.from("messages").select("author, body").eq("conversation_id", conversation.id).order("created_at", { ascending: true }).limit(12);
 
   const voice = (org.brand_voice ?? {}) as BrandVoice;
   let result;
@@ -158,7 +155,14 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
 
   try {
     if (inbound.platform === "email") {
-      await adapter.send(inbound.accountExternalId, inbound.customerEmail ?? inbound.customerHandle, result.reply);
+      const replyTo = inbound.externalMessageId ?? inbound.inReplyTo;
+      await sendEmail({
+        to: inbound.customerEmail ?? inbound.customerHandle,
+        subject: inbound.subject?.startsWith("Re:") ? inbound.subject : `Re: ${inbound.subject || "Your Growth Inspector conversation"}`,
+        text: result.reply,
+        inReplyTo: replyTo,
+        references: replyTo,
+      });
     } else {
       await adapter.send(inbound.accountExternalId, inbound.customerHandle, result.reply);
     }
