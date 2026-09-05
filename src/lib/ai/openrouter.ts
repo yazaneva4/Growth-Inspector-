@@ -1,28 +1,25 @@
 /** OpenRouter integration for Growth AI.
  *
- * The primary OpenRouter option is OpenRouter's official Free Models Router
- * (`openrouter/free`). It dynamically selects an eligible free model for each
- * request, so Growth AI does not need a hard-coded list of free model slugs.
+ * Growth AI uses OpenRouter's official Free Models Router (`openrouter/free`)
+ * for free-model routing. The router dynamically selects an eligible free
+ * model, so Growth Inspector does not hard-code GPT-OSS, Gemma, or another
+ * individual free-model slug.
  *
  * Free-model responses should not be used for sensitive customer data unless
  * the selected OpenRouter/provider policy is appropriate for that data.
  */
 
-/** Tier A — OpenRouter's official free-model router. */
-export const OPENROUTER_MODEL_A =
-  process.env.OPENROUTER_MODEL_A?.trim() || "openrouter/free";
+/** OpenRouter's official Free Models Router. */
+export const OPENROUTER_MODEL_A = "openrouter/free";
 
-/** Tier B — explicit free-model fallback if the router itself is unavailable. */
-export const OPENROUTER_MODEL_B =
-  process.env.OPENROUTER_MODEL_B?.trim() || "openai/gpt-oss-20b:free";
+/** Backward-compatible alias: the router itself is the only free tier. */
+export const OPENROUTER_MODEL_B = "openrouter/free";
 
 export function openrouterConfigured(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY);
 }
 
-/** Chat completion returning parsed JSON. Asks for a JSON object (works
- * across models that don't support strict json_schema) and parses the
- * first JSON block from the response defensively. */
+/** Chat completion returning parsed JSON. */
 export async function openrouterChatJSON<T>(opts: {
   model: string;
   system: string;
@@ -57,7 +54,7 @@ export async function openrouterChatJSON<T>(opts: {
   return JSON.parse(match ? match[0] : content) as T;
 }
 
-/** Plain-text chat completion — for Growth AI free-form responses. */
+/** Plain-text chat completion for Growth AI free-form responses. */
 export async function openrouterChatText(opts: {
   model: string;
   system: string;
