@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   const subject = firstString(payload.subject, payload.Subject);
   const messageId = firstString(payload.message_id, payload.messageId, payload["Message-ID"]);
   const inReplyTo = firstString(payload.in_reply_to, payload.inReplyTo, payload["In-Reply-To"]);
+  const references = firstString(payload.references, payload.References);
   const fromName = firstString(payload.fromName, payload.FromName, payload.sender_name);
   if (!from || !text) return NextResponse.json({ error: "from and text are required" }, { status: 400 });
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
     body: text,
     subject,
     externalMessageId: messageId,
-    inReplyTo,
+    inReplyTo: inReplyTo ?? references,
     receivedAt: new Date().toISOString(),
     mailbox: to,
   }, createServiceClient());
