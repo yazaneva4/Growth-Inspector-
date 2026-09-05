@@ -31,9 +31,11 @@ export async function getAnalytics(rangeDays = 7, orgSlug = DEMO_SLUG, client?: 
     [convsRes, msgsRes, escRes] = await Promise.all([
       db.from("conversations").select("intent, sentiment, language, lead_score, status, customer_name, customer_handle, platform, last_message_at, created_at").eq("org_id", org.id).gte("created_at", since),
       db.from("messages").select("author, created_at").eq("org_id", org.id).gte("created_at", since),
-      db.from("escalations").select("*", { count: "exact", head: true }).eq("org_id", org.id).gte("created_at", since),
+      db.from("escalations").select("id", { count: "exact", head: true }).eq("org_id", org.id).gte("created_at", since),
     ]);
   } catch { return null; }
+
+  if (convsRes.error || msgsRes.error || escRes.error) return null;
 
   const conversations = convsRes.data ?? [];
   const messages = msgsRes.data ?? [];
@@ -72,17 +74,33 @@ export async function getAnalytics(rangeDays = 7, orgSlug = DEMO_SLUG, client?: 
 
   let escalationsList: AnalyticsSummary["escalationsList"] = [];
   try {
-    const { data: escRows } = await db.from("escalations")
-      .select("reason, draft, conversations(customer_name, customer_handle, language)")
+    const { data: escRows, error: escListError } = await db
+      .from("escalations")
+      .select("id, reason, draft, conversation_id")
       .eq("org_id", org.id)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(4);
-    escalationsList = (escRows ?? []).map((e) => {
-      const c = (e.conversations ?? {}) as { customer_name?: string; customer_handle?: string; language?: string };
-      return { reason: e.reason as string, customer: c.customer_name ?? c.customer_handle ?? "Customer", language: c.language ?? null, draft: (e.draft as string | null) ?? null };
-    });
-  } catch { escalationsList = []; }
+    if (!escListError) {
+      const rows = escRows ?? [];
+      const conversationIds = rows.map((row) => row.conversation_id).filter(Boolean);
+      const { data: customerRows } = conversationIds.length
+        ? await db.from("conversations").select("id, customer_name, customer_handle, language").in("id", conversationIds)
+        : { data: [] };
+      const byId = new Map((customerRows ?? []).map((row) => [row.id as string, row]));
+      escalationsList = rows.map((e) => {
+        const c = byId.get(e.conversation_id as string) as { customer_name?: string | null; customer_handle?: string | null; language?: string | null } | undefined;
+        return {
+          reason: e.reason as string,
+          customer: c?.customer_name ?? c?.customer_handle ?? "Customer",
+          language: c?.language ?? null,
+          draft: (e.draft as string | null) ?? null,
+        };
+      });
+    }
+  } catch {
+    escalationsList = [];
+  }
 
   return { orgName: org.name, rangeDays, totals: { conversations: conversations.length, messages: messages.length, aiReplies, escalations, autoResolutionRate, hotLeads }, intents, sentiment, languages, volumeByDay, topLeads, recent, escalationsList };
 }
