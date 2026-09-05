@@ -38,7 +38,11 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
     return;
   }
 
-  // Reject unsupported channels before the AI can generate or persist a reply.
+  if (inbound.externalMessageId) {
+    const { data: duplicate } = await db.from("messages").select("id, conversation_id").eq("external_message_id", inbound.externalMessageId).maybeSingle();
+    if (duplicate) return { duplicate: true, messageId: duplicate.id, conversationId: duplicate.conversation_id };
+  }
+
   let adapter;
   try {
     adapter = getAdapter(inbound.platform);
@@ -60,22 +64,40 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
       account_id: account.id,
       platform: inbound.platform,
       customer_handle: inbound.customerHandle,
+      customer_email: inbound.customerEmail ?? (inbound.platform === "email" ? inbound.customerHandle : null),
       customer_name: inbound.customerName ?? null,
+      email_subject: inbound.subject ?? null,
+      thread_key: inbound.inReplyTo ?? inbound.customerEmail ?? null,
     }).select("*").single();
     conversation = data;
+  } else if (inbound.platform === "email") {
+    await db.from("conversations").update({
+      customer_email: inbound.customerEmail ?? conversation.customer_email ?? inbound.customerHandle,
+      customer_name: inbound.customerName ?? conversation.customer_name,
+      email_subject: inbound.subject ?? conversation.email_subject,
+      thread_key: inbound.inReplyTo ?? conversation.thread_key ?? inbound.customerEmail ?? inbound.customerHandle,
+    }).eq("id", conversation.id);
   }
   if (!conversation) return;
 
-  await db.from("messages").insert({
+  const { data: savedInbound, error: inboundError } = await db.from("messages").insert({
     org_id: org.id,
     conversation_id: conversation.id,
     direction: "inbound",
     author: "customer",
     body: inbound.body,
+    external_message_id: inbound.externalMessageId ?? null,
+    email_subject: inbound.subject ?? null,
+    in_reply_to: inbound.inReplyTo ?? null,
     delivered: true,
     delivery_status: "delivered",
     delivered_at: new Date().toISOString(),
-  });
+  }).select("id").single();
+  if (inboundError?.code === "23505") return { duplicate: true, conversationId: conversation.id };
+  if (inboundError || !savedInbound) throw inboundError ?? new Error("Could not persist inbound message.");
+
+  const receivedAt = inbound.receivedAt || new Date().toISOString();
+  await db.from("conversations").update({ last_message_at: receivedAt }).eq("id", conversation.id);
 
   const { data: history } = await db.from("messages").select("author, body")
     .eq("conversation_id", conversation.id).order("created_at", { ascending: true }).limit(12);
@@ -92,7 +114,7 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
     });
   } catch (err) {
     if (err instanceof AIUnavailableError) {
-      await db.from("conversations").update({ status: "escalated", urgency: "high", last_message_at: new Date().toISOString() }).eq("id", conversation.id);
+      await db.from("conversations").update({ status: "escalated", urgency: "high", last_message_at: receivedAt }).eq("id", conversation.id);
       await db.from("escalations").insert({ org_id: org.id, conversation_id: conversation.id, reason: "ai_unavailable", draft: null });
     }
     throw err;
@@ -112,12 +134,7 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
   }).eq("id", conversation.id);
 
   if (result.decision === "escalate") {
-    await db.from("escalations").insert({
-      org_id: org.id,
-      conversation_id: conversation.id,
-      reason: result.escalation_reason ?? "low_confidence",
-      draft: result.reply || null,
-    });
+    await db.from("escalations").insert({ org_id: org.id, conversation_id: conversation.id, reason: result.escalation_reason ?? "low_confidence", draft: result.reply || null });
     return result;
   }
 
@@ -140,27 +157,17 @@ export async function handleInbound(inbound: InboundMessage, client?: SupabaseCl
   if (!outbound) throw new Error("Could not persist outbound message before delivery.");
 
   try {
-    await adapter.send(inbound.accountExternalId, inbound.customerHandle, result.reply);
-    await db.from("messages").update({
-      delivered: true,
-      delivery_status: "delivered",
-      delivery_error: null,
-      delivered_at: new Date().toISOString(),
-    }).eq("id", outbound.id);
+    if (inbound.platform === "email") {
+      await adapter.send(inbound.accountExternalId, inbound.customerEmail ?? inbound.customerHandle, result.reply);
+    } else {
+      await adapter.send(inbound.accountExternalId, inbound.customerHandle, result.reply);
+    }
+    await db.from("messages").update({ delivered: true, delivery_status: "delivered", delivery_error: null, delivered_at: new Date().toISOString() }).eq("id", outbound.id);
   } catch (err) {
     const deliveryError = err instanceof Error ? err.message : "Platform delivery failed";
-    await db.from("messages").update({
-      delivered: false,
-      delivery_status: "failed",
-      delivery_error: deliveryError.slice(0, 1000),
-    }).eq("id", outbound.id);
+    await db.from("messages").update({ delivered: false, delivery_status: "failed", delivery_error: deliveryError.slice(0, 1000) }).eq("id", outbound.id);
     await db.from("conversations").update({ status: "escalated", urgency: "high" }).eq("id", conversation.id);
-    await db.from("escalations").insert({
-      org_id: org.id,
-      conversation_id: conversation.id,
-      reason: "delivery_failed",
-      draft: result.reply,
-    });
+    await db.from("escalations").insert({ org_id: org.id, conversation_id: conversation.id, reason: "delivery_failed", draft: result.reply });
     throw err;
   }
 
