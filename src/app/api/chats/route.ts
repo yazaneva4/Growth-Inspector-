@@ -74,6 +74,8 @@ export async function POST(req: NextRequest) {
 
     const orgId = memberships?.find((m) => m.user_id === user.id)?.org_id;
     if (!orgId) return NextResponse.json({ error: "no organization" }, { status: 404 });
+    const allSameOrg = participantIds.every((id) => memberships?.some((m) => m.user_id === id && m.org_id === orgId));
+    if (!allSameOrg) return NextResponse.json({ error: "one or more selected users are outside your workspace" }, { status: 403 });
 
     const directKey = kind === "personal" ? [user.id, participantIds.find((id) => id !== user.id)!].sort().join(":") : null;
     if (directKey) {
@@ -126,6 +128,13 @@ export async function POST(req: NextRequest) {
     if (!conversationId || !text) return NextResponse.json({ error: "conversation and message are required" }, { status: 400 });
     if (text.length > 4000) return NextResponse.json({ error: "message too long" }, { status: 400 });
 
+    const { data: conversation } = await supabase
+      .from("chat_conversations")
+      .select("id, org_id")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (!conversation) return NextResponse.json({ error: "chat not found" }, { status: 404 });
+
     const { data: participant } = await supabase
       .from("chat_participants")
       .select("conversation_id")
@@ -137,15 +146,16 @@ export async function POST(req: NextRequest) {
     const { data: membership } = await supabase
       .from("memberships")
       .select("org_id")
-      .limit(1)
+      .eq("org_id", conversation.org_id)
+      .eq("user_id", user.id)
       .maybeSingle();
-    if (!membership) return NextResponse.json({ error: "no organization" }, { status: 404 });
+    if (!membership) return NextResponse.json({ error: "not a workspace member" }, { status: 403 });
 
     const { data: message, error } = await supabase
       .from("chat_messages")
       .insert({
         conversation_id: conversationId,
-        org_id: membership.org_id,
+        org_id: conversation.org_id,
         author_id: user.id,
         author_email: user.email ?? "unknown",
         body: text,
