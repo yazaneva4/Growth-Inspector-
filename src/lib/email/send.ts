@@ -82,14 +82,14 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
       : mail.references;
   }
 
-  const payload: import("resend").CreateEmailOptions = {
+  const payload = {
     from,
     to: [to],
     subject,
     ...(mail.html ? { html: mail.html } : {}),
     ...(mail.text ? { text: mail.text } : {}),
     ...(Object.keys(headers).length ? { headers } : {}),
-  };
+  } as import("resend").CreateEmailOptions;
 
   const { error } = await resend.emails.send(payload);
 
