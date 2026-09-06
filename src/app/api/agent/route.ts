@@ -27,15 +27,11 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "sign in required" }, { status: 401 });
 
   const providers = await agentProviders();
-  const pickerProviders = Object.fromEntries(
-    Object.entries(providers).map(([provider, state]) => [
-      provider,
-      { ...state, models: [{ id: "auto", name: "⚡ Auto — best available" }, ...state.models.filter((model) => model.id !== "auto")] },
-    ]),
-  );
+  // Model lists are provider-specific. Do not inject a synthetic "best available"
+  // model into every provider; OpenRouter exposes only its explicit free router.
   return NextResponse.json({
-    providers: pickerProviders,
-    auto: { id: "auto", name: "⚡ Auto", description: "Chooses the best available model for the task and falls back automatically when quota or rate limits are reached." },
+    providers,
+    auto: { id: "auto", name: "⚡ Auto", description: "Chooses an available configured model for the task and falls back automatically when quota or rate limits are reached." },
     execution: { modes: EXECUTION_MODES, defaultMode: "auto", localHealth: "http://127.0.0.1:8787/health" },
     permissions: { modes: PERMISSION_MODES, defaultMode: "ask", skipDescription: "Skip all permissions disables permission prompts for the agent." },
   }, { headers: { "Cache-Control": "no-store" } });
