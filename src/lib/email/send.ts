@@ -62,7 +62,9 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
   }
 
   if (!env("RESEND_API_KEY")) {
-    throw new Error("Growth Inspector application email is not configured. Add RESEND_API_KEY to the server environment.");
+    throw new Error(
+      "Growth Inspector application email is not configured. Add RESEND_API_KEY to the server environment.",
+    );
   }
 
   if (!from) {
@@ -80,14 +82,16 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
       : mail.references;
   }
 
-  const { error } = await resend.emails.send({
+  const payload = {
     from,
     to: [to],
     subject,
-    html: mail.html,
-    text: mail.text,
+    ...(mail.html ? { html: mail.html } : {}),
+    ...(mail.text ? { text: mail.text } : {}),
     ...(Object.keys(headers).length ? { headers } : {}),
-  });
+  };
+
+  const { error } = await resend.emails.send(payload);
 
   if (error) {
     throw new Error(`Resend rejected the email: ${error.message}`);
