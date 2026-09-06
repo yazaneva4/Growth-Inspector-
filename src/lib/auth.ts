@@ -34,26 +34,18 @@ export const getCurrentContext = cache(async (): Promise<CurrentContext> => {
   const fullName = (user.user_metadata?.full_name as string | undefined)?.trim();
   const name = fullName || user.email?.split("@")[0] || null;
 
+  // Always process pending team invitations for the signed-in email. A user
+  // can already have an account/session (and even another workspace) when an
+  // owner sends the invitation, so checking only when membership is missing
+  // leaves the invite incorrectly stuck at Pending.
+  await supabase.rpc("accept_pending_invites");
+
   type OrgRow = { slug?: string; name?: string; onboarded?: boolean };
-  let { data: membership } = await supabase
+  const { data: membership } = await supabase
     .from("memberships")
     .select("role, organizations(slug, name, onboarded)")
     .limit(1)
     .maybeSingle();
-
-  // Invites only need to be checked when the user does not already have a
-  // membership. Avoiding the RPC on every dashboard request removes a full
-  // round-trip from the hot path for established users.
-  if (!membership) {
-    await supabase.rpc("accept_pending_invites");
-    membership = (
-      await supabase
-        .from("memberships")
-        .select("role, organizations(slug, name, onboarded)")
-        .limit(1)
-        .maybeSingle()
-    ).data;
-  }
 
   let org = membership?.organizations as OrgRow | null;
   let slug = org?.slug;
