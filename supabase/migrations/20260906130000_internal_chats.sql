@@ -47,42 +47,41 @@ language sql stable security definer set search_path = public, auth as $$
   order by lower(coalesce(u.email, ''))
 $$;
 
+create or replace function is_chat_participant(target_conversation uuid, target_user uuid default auth.uid())
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from chat_participants
+    where conversation_id = target_conversation and user_id = target_user
+  );
+$$;
+
 alter table chat_conversations enable row level security;
 alter table chat_participants enable row level security;
 alter table chat_messages enable row level security;
 
 create policy chat_conv_member_select on chat_conversations for select
-  using (org_id in (select auth_org_ids()) and exists (
-    select 1 from chat_participants p where p.conversation_id = id and p.user_id = auth.uid()
-  ));
+  using (org_id in (select auth_org_ids()) and is_chat_participant(id));
 create policy chat_conv_member_insert on chat_conversations for insert
   with check (org_id in (select auth_org_ids()) and created_by = auth.uid());
 create policy chat_conv_member_update on chat_conversations for update
-  using (org_id in (select auth_org_ids()) and exists (
-    select 1 from chat_participants p where p.conversation_id = id and p.user_id = auth.uid()
-  ))
+  using (org_id in (select auth_org_ids()) and is_chat_participant(id))
   with check (org_id in (select auth_org_ids()));
 
 create policy chat_participant_member_select on chat_participants for select
-  using (exists (
-    select 1 from chat_participants mine where mine.conversation_id = conversation_id and mine.user_id = auth.uid()
-  ));
+  using (is_chat_participant(conversation_id));
 create policy chat_participant_creator_insert on chat_participants for insert
   with check (exists (
     select 1 from chat_conversations c where c.id = conversation_id and c.org_id in (select auth_org_ids())
   ));
 
 create policy chat_message_member_select on chat_messages for select
-  using (org_id in (select auth_org_ids()) and exists (
-    select 1 from chat_participants p where p.conversation_id = chat_messages.conversation_id and p.user_id = auth.uid()
-  ));
+  using (org_id in (select auth_org_ids()) and is_chat_participant(conversation_id));
 create policy chat_message_member_insert on chat_messages for insert
   with check (
     org_id in (select auth_org_ids())
     and author_id = auth.uid()
-    and exists (
-      select 1 from chat_participants p where p.conversation_id = chat_messages.conversation_id and p.user_id = auth.uid()
-    )
+    and is_chat_participant(conversation_id)
   );
 
 alter table chat_messages replica identity full;
