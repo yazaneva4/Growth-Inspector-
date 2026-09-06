@@ -45,12 +45,15 @@ export async function POST(req: NextRequest) {
 
     const { data: memberships } = await supabase
       .from("memberships")
-      .select("user_id")
+      .select("user_id, org_id")
       .in("user_id", participantIds);
     const allowed = new Set((memberships ?? []).map((m) => m.user_id));
     if (participantIds.some((id) => !allowed.has(id))) {
       return NextResponse.json({ error: "one or more selected users are not in your workspace" }, { status: 403 });
     }
+
+    const orgId = memberships?.find((m) => m.user_id === user.id)?.org_id;
+    if (!orgId) return NextResponse.json({ error: "no organization" }, { status: 404 });
 
     const directKey = kind === "personal" ? [user.id, participantIds.find((id) => id !== user.id)!].sort().join(":") : null;
     if (directKey) {
@@ -65,7 +68,7 @@ export async function POST(req: NextRequest) {
     const { data: conversation, error: createError } = await supabase
       .from("chat_conversations")
       .insert({
-        org_id: memberships?.find((m) => m.user_id === user.id)?.org_id,
+        org_id: orgId,
         kind,
         title: kind === "group" ? String(body?.title ?? "").trim().slice(0, 120) || "New group" : null,
         direct_key: directKey,
