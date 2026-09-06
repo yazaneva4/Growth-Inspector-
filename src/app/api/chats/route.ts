@@ -43,7 +43,19 @@ export async function GET(req: NextRequest) {
   if (conversationError) return NextResponse.json({ error: conversationError.message }, { status: 400 });
   if (memberError) return NextResponse.json({ error: memberError.message }, { status: 400 });
 
-  return NextResponse.json({ conversations: conversations ?? [], members: members ?? [], currentUserId: user.id });
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  return NextResponse.json({
+    conversations: conversations ?? [],
+    members: members ?? [],
+    currentUserId: user.id,
+    orgId: membership?.org_id ?? null,
+  });
 }
 
 export async function POST(req: NextRequest) {
