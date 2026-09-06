@@ -5,21 +5,18 @@
  * Outlook, Yahoo, iCloud, or another normal email service. Growth Inspector
  * never needs that customer's provider API or credentials.
  *
- * This transport is only for the Growth Inspector sender mailbox. It is
- * deliberately separate from Supabase Auth. Supabase/Auth may send
+ * Resend is the single application email transport. Supabase/Auth may send
  * authentication mail through its own configured provider; application mail
  * (invoices, access approvals, inbox replies, Growth AI email actions) comes
  * through this module.
  *
- * Transport priority:
- *   1. Custom SMTP — SMTP_HOST + SMTP_USER + SMTP_PASSWORD.
- *   2. Gmail SMTP — GMAIL_USER + GMAIL_APP_PASSWORD.
+ * Required environment variables:
+ *   RESEND_API_KEY — server-side Resend API key.
+ *   EMAIL_FROM — verified Resend sender, for example
+ *     Growth Inspector <support@growth-inspector.spiritofrushna.com>.
  *
- * The selected transport is used for every customer domain. There is no
- * Yahoo/Outlook/iCloud/Gmail-recipient routing or provider API lookup.
- *
- * No sender transport credentials means delivery fails explicitly instead of
- * pretending that a message was sent.
+ * The recipient domain is never used to select a transport. One Resend sender
+ * can deliver to normal Gmail, Outlook, Yahoo, iCloud, and other mailboxes.
  */
 
 export interface OutboundEmail {
@@ -31,83 +28,70 @@ export interface OutboundEmail {
   references?: string | string[];
 }
 
-type TransportKind = "smtp" | "gmail" | "none";
-
 function env(name: string) {
   const value = process.env[name]?.trim();
   return value || undefined;
 }
 
-function configuredFrom(user?: string) {
-  const configured = env("EMAIL_FROM");
-  if (configured && !/yourdomain\\.sa/i.test(configured)) return configured;
-  return user ? `Growth Inspector <${user}>` : undefined;
+export function emailTransport(): "resend" | "none" {
+  return env("RESEND_API_KEY") && env("EMAIL_FROM") ? "resend" : "none";
 }
 
-export function emailTransport(): TransportKind {
-  if (env("SMTP_HOST") && env("SMTP_USER") && env("SMTP_PASSWORD")) return "smtp";
-  if (env("GMAIL_USER") && env("GMAIL_APP_PASSWORD")) return "gmail";
-  return "none";
-}
+let resendPromise: Promise<import("resend").Resend> | undefined;
 
-let transporterPromise: Promise<import("nodemailer").Transporter> | undefined;
-
-async function getTransporter() {
-  const kind = emailTransport();
-  if (kind === "none") return null;
-  transporterPromise ??= (async () => {
-    const nodemailer = (await import("nodemailer")).default;
-    if (kind === "smtp") {
-      const port = Number(env("SMTP_PORT") ?? "587");
-      return nodemailer.createTransport({
-        host: env("SMTP_HOST")!,
-        port,
-        secure: env("SMTP_SECURE") === "true" || port === 465,
-        auth: { user: env("SMTP_USER")!, pass: env("SMTP_PASSWORD")! },
-      });
-    }
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: env("GMAIL_USER")!, pass: env("GMAIL_APP_PASSWORD")! },
-    });
+async function getResend() {
+  if (!env("RESEND_API_KEY")) return null;
+  resendPromise ??= (async () => {
+    const { Resend } = await import("resend");
+    return new Resend(env("RESEND_API_KEY")!);
   })();
-  return transporterPromise;
+  return resendPromise;
 }
 
 /**
- * Resolves true only when the configured sender transport accepted the message.
+ * Resolves true only when Resend accepted the message.
  * The recipient domain is intentionally never used to select a transport.
  */
 export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
   const to = mail.to.trim();
   const subject = mail.subject.trim();
+  const from = env("EMAIL_FROM");
+
   if (!to || !subject || (!mail.text && !mail.html)) {
     throw new Error("Application email requires a recipient, subject, and body.");
   }
 
-  const kind = emailTransport();
-  if (kind === "none") {
-    throw new Error(
-      "Growth Inspector application email is not configured. Configure one sender transport (SMTP or Gmail SMTP); customer mailboxes do not need separate provider APIs or credentials.",
-    );
+  if (!env("RESEND_API_KEY")) {
+    throw new Error("Growth Inspector application email is not configured. Add RESEND_API_KEY to the server environment.");
   }
 
-  const transporter = await getTransporter();
-  if (!transporter) throw new Error("Application email transport is unavailable.");
+  if (!from) {
+    throw new Error("EMAIL_FROM is required and must use a verified Resend sender domain.");
+  }
 
-  const user = env("SMTP_USER") ?? env("GMAIL_USER");
-  const from = configuredFrom(user);
-  if (!from) throw new Error("EMAIL_FROM or an SMTP/Gmail sender account is required.");
+  const resend = await getResend();
+  if (!resend) throw new Error("Resend email transport is unavailable.");
 
-  await transporter.sendMail({
+  const headers: Record<string, string> = {};
+  if (mail.inReplyTo) headers["In-Reply-To"] = mail.inReplyTo;
+  if (mail.references) {
+    headers.References = Array.isArray(mail.references)
+      ? mail.references.join(" ")
+      : mail.references;
+  }
+
+  const { error } = await resend.emails.send({
     from,
-    to,
+    to: [to],
     subject,
     html: mail.html,
     text: mail.text,
-    inReplyTo: mail.inReplyTo,
-    references: mail.references,
+    ...(Object.keys(headers).length ? { headers } : {}),
   });
+
+  if (error) {
+    throw new Error(`Resend rejected the email: ${error.message}`);
+  }
 
   return true;
 }
