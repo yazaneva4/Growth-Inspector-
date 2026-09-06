@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "sign in required" }, { status: 401 });
   }
+
   const { data: membership } = await supabase
     .from("memberships")
     .select("org_id")
@@ -31,11 +32,27 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase
     .from("team_invites")
     .upsert(
-      { org_id: membership.org_id, email, role },
+      { org_id: membership.org_id, email, role, accepted: false },
       { onConflict: "org_id,email" },
     );
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  // If this email already has an account, join it immediately. The RPC runs
+  // with elevated DB privileges but verifies that the caller belongs to the
+  // target workspace before touching the target user's membership.
+  const { error: acceptError } = await supabase.rpc("accept_existing_team_invite", {
+    p_org_id: membership.org_id,
+    p_email: email,
+  });
+  if (acceptError) {
+    // Keep the normal pending-invite flow working if the migration has not yet
+    // been applied; new users can still accept through accept_pending_invites.
+    if (!acceptError.message.toLowerCase().includes("does not exist")) {
+      return NextResponse.json({ error: acceptError.message }, { status: 400 });
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
