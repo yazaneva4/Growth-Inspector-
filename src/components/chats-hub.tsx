@@ -34,6 +34,8 @@ export function ChatsHub() {
   const [members, setMembers] = useState<Member[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [orgId, setOrgId] = useState<string>("");
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -58,6 +60,26 @@ export function ChatsHub() {
     return other?.name || other?.email || "Personal chat";
   }
 
+  function otherMember(conversation: Conversation) {
+    if (conversation.kind !== "personal") return null;
+    return conversation.chat_participants
+      .map((participant) => memberById.get(participant.user_id))
+      .find((member) => member && member.user_id !== currentUserId) ?? null;
+  }
+
+  function Avatar({ member, label }: { member: Member | null; label: string }) {
+    const online = Boolean(member && onlineUserIds.has(member.user_id));
+    return (
+      <span
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${online ? "bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500 ring-offset-1" : "bg-slate-100 text-slate-600 ring-2 ring-slate-300 ring-offset-1"}`}
+        aria-label={`${label} · ${online ? "Online" : "Offline"}`}
+        title={`${label} · ${online ? "Online" : "Offline"}`}
+      >
+        {initials(member?.name || member?.email || label)}
+      </span>
+    );
+  }
+
   async function load() {
     setError(null);
     const response = await fetch("/api/chats", { cache: "no-store" });
@@ -66,6 +88,7 @@ export function ChatsHub() {
     setMembers(data.members ?? []);
     setConversations(data.conversations ?? []);
     setCurrentUserId(data.currentUserId ?? "");
+    setOrgId(data.orgId ?? "");
     setSelectedId((current) => current ?? data.conversations?.[0]?.id ?? null);
   }
 
@@ -87,6 +110,42 @@ export function ChatsHub() {
     }
     void loadMessages(selectedId).catch((err) => setError(err instanceof Error ? err.message : "Unable to load messages"));
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!currentUserId || !orgId) return;
+    const supabase = createClient();
+    const channel = supabase.channel(`internal-chat-presence:${orgId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    const updatePresence = () => {
+      const state = channel.presenceState<{ user_id: string }>();
+      const online = new Set<string>();
+      Object.values(state).forEach((entries) => {
+        entries.forEach((entry) => {
+          if (entry.user_id) online.add(entry.user_id);
+        });
+      });
+      setOnlineUserIds(online);
+    };
+
+    channel
+      .on("presence", { event: "sync" }, updatePresence)
+      .on("presence", { event: "join" }, updatePresence)
+      .on("presence", { event: "leave" }, updatePresence)
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ user_id: currentUserId });
+          updatePresence();
+        }
+      });
+
+    return () => {
+      void channel.untrack();
+      void supabase.removeChannel(channel);
+      setOnlineUserIds(new Set());
+    };
+  }, [currentUserId, orgId]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -181,7 +240,7 @@ export function ChatsHub() {
             <div className="p-6 text-center text-sm text-slate-500">No {mode} chats yet.</div>
           ) : visibleConversations.map((conversation) => (
             <button key={conversation.id} onClick={() => setSelectedId(conversation.id)} className={`mb-1 flex w-full items-center gap-3 rounded-xl p-3 text-left ${selectedId === conversation.id ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{initials(conversationName(conversation))}</span>
+              <Avatar member={otherMember(conversation)} label={conversationName(conversation)} />
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-slate-900">{conversationName(conversation)}</span><span className="block truncate text-xs text-slate-400">{conversation.kind === "group" ? `${conversation.chat_participants.length} members` : "Personal"}</span></span>
             </button>
           ))}
@@ -193,7 +252,7 @@ export function ChatsHub() {
           <>
             <header className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
               <button onClick={() => setSelectedId(null)} className="rounded-lg px-2 py-1 text-lg text-slate-500 hover:bg-slate-100 lg:hidden" aria-label="Back to chats">←</button>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{initials(conversationName(selected))}</div>
+              <Avatar member={otherMember(selected)} label={conversationName(selected)} />
               <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-slate-900">{conversationName(selected)}</h2><p className="text-xs text-slate-400">{selected.kind === "group" ? "Group chat" : "Personal chat"}</p></div>
               <button onClick={() => setShowMessages((value) => !value)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Messages</button>
             </header>
@@ -211,7 +270,7 @@ export function ChatsHub() {
         ) : <div className="flex flex-1 items-center justify-center p-8 text-center"><div><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl">💬</div><h2 className="mt-4 text-lg font-semibold text-slate-900">Choose a chat</h2><p className="mt-1 text-sm text-slate-500">Select a conversation or create a new one.</p></div></div>}
       </main>
 
-      {showComposer && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 p-3 sm:items-center"><div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">New {mode === "personal" ? "personal chat" : "group chat"}</h2><p className="text-xs text-slate-500">Choose members from your Growth Inspector workspace.</p></div><button onClick={() => setShowComposer(false)} className="rounded-lg px-2 py-1 text-slate-500">✕</button></div>{mode === "group" && <input value={groupTitle} onChange={(event) => setGroupTitle(event.target.value)} placeholder="Group name" className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"/>}<div className="mt-4 max-h-64 space-y-1 overflow-y-auto">{members.filter((member) => member.user_id !== currentUserId).map((member) => <button key={member.user_id} onClick={() => mode === "personal" ? setSelectedMembers([member.user_id]) : toggleMember(member.user_id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${selectedMembers.includes(member.user_id) ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-slate-50"}`}><span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold">{initials(member.name || member.email)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{member.name}</span><span className="block truncate text-xs text-slate-400">{member.email}</span></span><span className="text-emerald-600">{selectedMembers.includes(member.user_id) ? "✓" : ""}</span></button>)}</div><button onClick={() => void createChat()} disabled={busy || selectedMembers.length === 0} className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Creating…" : "Create chat"}</button></div></div>}
+      {showComposer && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 p-3 sm:items-center"><div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">New {mode === "personal" ? "personal chat" : "group chat"}</h2><p className="text-xs text-slate-500">Choose members from your Growth Inspector workspace.</p></div><button onClick={() => setShowComposer(false)} className="rounded-lg px-2 py-1 text-slate-500">✕</button></div>{mode === "group" && <input value={groupTitle} onChange={(event) => setGroupTitle(event.target.value)} placeholder="Group name" className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"/>}<div className="mt-4 max-h-64 space-y-1 overflow-y-auto">{members.filter((member) => member.user_id !== currentUserId).map((member) => <button key={member.user_id} onClick={() => mode === "personal" ? setSelectedMembers([member.user_id]) : toggleMember(member.user_id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${selectedMembers.includes(member.user_id) ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-slate-50"}`}><span className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold ring-2 ring-offset-1 ${onlineUserIds.has(member.user_id) ? "ring-emerald-500" : "ring-slate-300"}`} aria-label={`${member.name || member.email} · ${onlineUserIds.has(member.user_id) ? "Online" : "Offline"}`} title={`${member.name || member.email} · ${onlineUserIds.has(member.user_id) ? "Online" : "Offline"}`}>{initials(member.name || member.email)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{member.name}</span><span className="block truncate text-xs text-slate-400">{member.email}</span></span><span className="text-emerald-600">{selectedMembers.includes(member.user_id) ? "✓" : ""}</span></button>)}</div><button onClick={() => void createChat()} disabled={busy || selectedMembers.length === 0} className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Creating…" : "Create chat"}</button></div></div>}
       {error && <div className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-xs text-white shadow-lg">{error}</div>}
     </div>
   );
