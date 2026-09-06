@@ -1,7 +1,12 @@
 /**
  * Growth Inspector application email transport.
  *
- * This is deliberately separate from Supabase Auth. Supabase/Auth may send
+ * Customer mailboxes are provider-agnostic: the recipient can be on Gmail,
+ * Outlook, Yahoo, iCloud, or another normal email service. Growth Inspector
+ * never needs that customer's provider API or credentials.
+ *
+ * This transport is only for the Growth Inspector sender mailbox. It is
+ * deliberately separate from Supabase Auth. Supabase/Auth may send
  * authentication mail through its own configured provider; application mail
  * (invoices, access approvals, inbox replies, Growth AI email actions) comes
  * through this module.
@@ -10,8 +15,11 @@
  *   1. Custom SMTP — SMTP_HOST + SMTP_USER + SMTP_PASSWORD.
  *   2. Gmail SMTP — GMAIL_USER + GMAIL_APP_PASSWORD.
  *
- * No credentials means delivery fails explicitly instead of pretending that a
- * message was sent.
+ * The selected transport is used for every customer domain. There is no
+ * Yahoo/Outlook/iCloud/Gmail-recipient routing or provider API lookup.
+ *
+ * No sender transport credentials means delivery fails explicitly instead of
+ * pretending that a message was sent.
  */
 
 export interface OutboundEmail {
@@ -32,7 +40,7 @@ function env(name: string) {
 
 function configuredFrom(user?: string) {
   const configured = env("EMAIL_FROM");
-  if (configured && !/yourdomain\.sa/i.test(configured)) return configured;
+  if (configured && !/yourdomain\\.sa/i.test(configured)) return configured;
   return user ? `Growth Inspector <${user}>` : undefined;
 }
 
@@ -58,23 +66,39 @@ async function getTransporter() {
         auth: { user: env("SMTP_USER")!, pass: env("SMTP_PASSWORD")! },
       });
     }
-    return nodemailer.createTransport({ service: "gmail", auth: { user: env("GMAIL_USER")!, pass: env("GMAIL_APP_PASSWORD")! } });
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: env("GMAIL_USER")!, pass: env("GMAIL_APP_PASSWORD")! },
+    });
   })();
   return transporterPromise;
 }
 
-/** Resolves true only when the SMTP provider accepted the message. */
+/**
+ * Resolves true only when the configured sender transport accepted the message.
+ * The recipient domain is intentionally never used to select a transport.
+ */
 export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
   const to = mail.to.trim();
   const subject = mail.subject.trim();
-  if (!to || !subject || (!mail.text && !mail.html)) throw new Error("Application email requires a recipient, subject, and body.");
+  if (!to || !subject || (!mail.text && !mail.html)) {
+    throw new Error("Application email requires a recipient, subject, and body.");
+  }
+
   const kind = emailTransport();
-  if (kind === "none") throw new Error("Growth Inspector application email is not configured. Set SMTP_HOST/SMTP_USER/SMTP_PASSWORD or GMAIL_USER/GMAIL_APP_PASSWORD in the deployment environment.");
+  if (kind === "none") {
+    throw new Error(
+      "Growth Inspector application email is not configured. Configure one sender transport (SMTP or Gmail SMTP); customer mailboxes do not need separate provider APIs or credentials.",
+    );
+  }
+
   const transporter = await getTransporter();
   if (!transporter) throw new Error("Application email transport is unavailable.");
+
   const user = env("SMTP_USER") ?? env("GMAIL_USER");
   const from = configuredFrom(user);
   if (!from) throw new Error("EMAIL_FROM or an SMTP/Gmail sender account is required.");
+
   await transporter.sendMail({
     from,
     to,
@@ -84,5 +108,6 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
     inReplyTo: mail.inReplyTo,
     references: mail.references,
   });
+
   return true;
 }
