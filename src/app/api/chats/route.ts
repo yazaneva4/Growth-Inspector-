@@ -7,9 +7,29 @@ async function getUser() {
   return { supabase, user };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { supabase, user } = await getUser();
   if (!user) return NextResponse.json({ error: "sign in required" }, { status: 401 });
+
+  const conversationId = req.nextUrl.searchParams.get("conversationId");
+  if (conversationId) {
+    const { data: participant } = await supabase
+      .from("chat_participants")
+      .select("conversation_id")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!participant) return NextResponse.json({ error: "not a participant" }, { status: 403 });
+
+    const { data: messages, error } = await supabase
+      .from("chat_messages")
+      .select("id, conversation_id, author_id, author_email, body, created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true })
+      .limit(300);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ messages: messages ?? [] });
+  }
 
   const [{ data: conversations, error: conversationError }, { data: members, error: memberError }] =
     await Promise.all([
