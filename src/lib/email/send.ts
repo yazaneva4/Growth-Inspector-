@@ -82,7 +82,7 @@ export async function sendEmail(mail: OutboundEmail): Promise<boolean> {
       : mail.references;
   }
 
-  const payload = {
+  const payload: import("resend").CreateEmailOptions = {
     from,
     to: [to],
     subject,
