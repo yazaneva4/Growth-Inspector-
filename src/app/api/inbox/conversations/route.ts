@@ -25,9 +25,37 @@ export async function POST(req: NextRequest) {
   const db = createServiceClient();
   let { data: account } = await db.from("connected_accounts").select("id, org_id, external_id").eq("org_id", org.id).eq("platform", "email").eq("is_active", true).limit(1).maybeSingle();
   if (!account) {
-    const { data: created, error } = await db.from("connected_accounts").insert({ org_id: org.id, platform: "email", external_id: "support-inbox", display_name: "Support Email", credentials: {}, is_active: true }).select("id, org_id, external_id").single();
-    if (error || !created) return NextResponse.json({ error: "Email inbox is not configured for this workspace." }, { status: 503 });
-    account = created;
+    // connected_accounts historically has a global (platform, external_id)
+    // uniqueness rule, so a shared "support-inbox" id breaks when another
+    // workspace provisions its own email account. Scope new ids to the org.
+    const workspaceExternalId = `support-inbox:${org.id}`;
+    const { data: created, error } = await db.from("connected_accounts").insert({
+      org_id: org.id,
+      platform: "email",
+      external_id: workspaceExternalId,
+      display_name: "Support Email",
+      credentials: {},
+      is_active: true,
+    }).select("id, org_id, external_id").single();
+
+    if (created) {
+      account = created;
+    } else {
+      // Handle a concurrent request that created the account first.
+      const { data: raced } = await db.from("connected_accounts")
+        .select("id, org_id, external_id")
+        .eq("org_id", org.id)
+        .eq("platform", "email")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (raced) {
+        account = raced;
+      } else {
+        console.error("Could not provision workspace email inbox", error);
+        return NextResponse.json({ error: error?.message || "Could not provision the workspace email inbox." }, { status: 503 });
+      }
+    }
   }
 
   const { data: existing } = await db.from("conversations").select("*").eq("org_id", org.id).eq("account_id", account.id).eq("customer_email", email).eq("status", "open").maybeSingle();
