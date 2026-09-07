@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
 
 export const maxDuration = 30;
@@ -18,16 +18,15 @@ export async function POST(req: NextRequest) {
   if (!subject) return NextResponse.json({ error: "A subject is required." }, { status: 400 });
   if (!text) return NextResponse.json({ error: "Write a message before sending." }, { status: 400 });
 
-  const authDb = await createClient();
-  const { data: org } = await authDb.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
+  // Use the authenticated request client for workspace-scoped data.
+  // This preserves the user's auth cookie and lets connected_accounts RLS
+  // enforce org membership instead of falling back to the anonymous role.
+  const db = await createClient();
+  const { data: org } = await db.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
   if (!org) return NextResponse.json({ error: "Workspace not found." }, { status: 404 });
 
-  const db = createServiceClient();
   let { data: account } = await db.from("connected_accounts").select("id, org_id, external_id").eq("org_id", org.id).eq("platform", "email").eq("is_active", true).limit(1).maybeSingle();
   if (!account) {
-    // connected_accounts historically has a global (platform, external_id)
-    // uniqueness rule, so a shared "support-inbox" id breaks when another
-    // workspace provisions its own email account. Scope new ids to the org.
     const workspaceExternalId = `support-inbox:${org.id}`;
     const { data: created, error } = await db.from("connected_accounts").insert({
       org_id: org.id,
@@ -41,7 +40,6 @@ export async function POST(req: NextRequest) {
     if (created) {
       account = created;
     } else {
-      // Handle a concurrent request that created the account first.
       const { data: raced } = await db.from("connected_accounts")
         .select("id, org_id, external_id")
         .eq("org_id", org.id)
