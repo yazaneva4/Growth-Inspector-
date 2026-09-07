@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/send";
 
 export const maxDuration = 30;
@@ -13,11 +13,12 @@ export async function POST(req: NextRequest) {
   const text = typeof body?.body === "string" ? body.body.trim() : "";
   if (!conversationId || !text) return NextResponse.json({ error: "conversationId and message body are required." }, { status: 400 });
 
-  const authDb = await createClient();
-  const { data: org } = await authDb.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
+  // Use the authenticated request client so the session cookie and workspace
+  // RLS policies remain active. Never fall back to the anonymous role here.
+  const db = await createClient();
+  const { data: org } = await db.from("organizations").select("id").eq("slug", ctx.orgSlug).maybeSingle();
   if (!org) return NextResponse.json({ error: "Workspace not found." }, { status: 404 });
 
-  const db = createServiceClient();
   const { data: conversation } = await db.from("conversations").select("id, org_id, platform, customer_email, customer_handle, email_subject, thread_key").eq("id", conversationId).eq("org_id", org.id).maybeSingle();
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
