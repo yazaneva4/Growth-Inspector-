@@ -13,9 +13,7 @@ export async function createClient() {
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
-          );
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
           // called from a Server Component — the proxy refreshes the session
         }
@@ -25,23 +23,19 @@ export async function createClient() {
 }
 
 /**
- * Service-role client for trusted server contexts (webhook ingestion,
- * background jobs) that must bypass RLS. NEVER expose to the browser.
+ * Trusted server-side client for webhook/background work.
+ * Prefer the modern Supabase secret key, then the legacy service-role key.
+ * Never expose either key to browser code.
  */
 export function createServiceClient() {
-  return createSupabaseClient(
-    SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? SUPABASE_ANON_KEY,
-    { auth: { persistSession: false } },
-  );
+  const secret = process.env.SUPABASE_SECRET_KEY?.trim();
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const key = secret || serviceRole;
+  if (!key) throw new Error("SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY is required for trusted server operations.");
+  return createSupabaseClient(SUPABASE_URL, key, { auth: { persistSession: false } });
 }
 
-/**
- * Anonymous (publishable-key) client for server-side reads that rely on RLS,
- * such as the public demo workspace dashboards. No session required.
- */
+/** Anonymous (publishable-key) client for public server-side reads. */
 export function createPublicClient() {
-  return createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false },
-  });
+  return createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 }
