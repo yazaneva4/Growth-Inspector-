@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { handleInbound } from "@/lib/orchestrator";
 import { AIUnavailableError } from "@/lib/ai/responder";
 
@@ -9,6 +9,9 @@ export const maxDuration = 30;
  * Demo/sandbox inbound endpoint. Real customer email should use
  * /api/inbox/email/webhook, which authenticates the mail provider webhook
  * and preserves email identity/thread metadata.
+ *
+ * This route performs trusted server-side ingestion, so it uses the
+ * service-role client. The browser never receives that key.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -24,7 +27,7 @@ export async function POST(req: NextRequest) {
     ? customerHandle
     : undefined;
 
-  const db = createPublicClient();
+  const db = createServiceClient();
   try {
     const result = await handleInbound({
       platform: channel,
