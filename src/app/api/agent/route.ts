@@ -6,14 +6,24 @@ import { runFreeGrowthAgent } from "@/lib/ai/free-agent";
 export const maxDuration = 60;
 
 const FREE_PROVIDERS = {
-  opencode: { configured: true, models: [{ id: "big-pickle", name: "OpenCode Zen · Big Pickle (Free)" }] },
-  openrouter: { configured: Boolean(process.env.OPENROUTER_API_KEY), models: [{ id: "openrouter/free", name: "OpenRouter Free Models Router" }] },
+  opencode: {
+    configured: Boolean(process.env.OPENCODE_API_KEY?.trim()),
+    models: [{ id: "big-pickle", name: "OpenCode Zen · Big Pickle (Free)" }],
+  },
+  openrouter: {
+    configured: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
+    models: [{ id: "openrouter/free", name: "OpenRouter Free Models Router" }],
+  },
 };
 
 export async function GET() {
   return NextResponse.json({
     providers: FREE_PROVIDERS,
-    auto: { id: "auto", name: "Free Auto", description: "Uses OpenCode Zen Big Pickle first, then OpenRouter Free Models Router when the first route is unavailable or rate-limited." },
+    auto: {
+      id: "auto",
+      name: "Free Auto",
+      description: "Uses only free AI: OpenCode Zen Big Pickle first, then OpenRouter Free Models Router when the first free route is unavailable or rate-limited.",
+    },
   });
 }
 
@@ -26,7 +36,13 @@ export async function POST(req: NextRequest) {
   if (!goal) return NextResponse.json({ error: "goal required" }, { status: 400 });
 
   const history = Array.isArray(body?.history)
-    ? body.history.filter((m: unknown): m is { role: "user" | "assistant"; content: string } => Boolean(m && typeof m === "object" && (((m as { role?: unknown }).role === "user") || ((m as { role?: unknown }).role === "assistant")) && typeof (m as { content?: unknown }).content === "string")).slice(-32)
+    ? body.history
+        .filter((m: unknown): m is { role: "user" | "assistant"; content: string } => Boolean(
+          m && typeof m === "object" &&
+          (((m as { role?: unknown }).role === "user") || ((m as { role?: unknown }).role === "assistant")) &&
+          typeof (m as { content?: unknown }).content === "string",
+        ))
+        .slice(-32)
     : [];
 
   const db = await createClient();
