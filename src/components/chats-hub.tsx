@@ -43,6 +43,7 @@ export function ChatsHub() {
   const [error, setError] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
   const [groupTitle, setGroupTitle] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [showMessages, setShowMessages] = useState(true);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -52,6 +53,12 @@ export function ChatsHub() {
     () => conversations.filter((conversation) => conversation.kind === mode),
     [conversations, mode],
   );
+  const composerMembers = useMemo(() => {
+    const query = memberSearch.trim().toLowerCase();
+    return members
+      .filter((member) => member.user_id !== currentUserId)
+      .filter((member) => !query || member.name.toLowerCase().includes(query) || member.email.toLowerCase().includes(query));
+  }, [members, currentUserId, memberSearch]);
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null;
 
   function conversationName(conversation: Conversation) {
@@ -168,14 +175,30 @@ export function ChatsHub() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function openComposer() {
+    setError(null);
+    setMemberSearch("");
+    setSelectedMembers([]);
+    setGroupTitle("");
+    setShowComposer(true);
+  }
+
+  function closeComposer() {
+    if (busy) return;
+    setShowComposer(false);
+    setMemberSearch("");
+    setSelectedMembers([]);
+    setGroupTitle("");
+  }
+
   async function createChat() {
     setError(null);
     if (mode === "personal" && selectedMembers.length !== 1) {
-      setError("Choose one team member for a personal chat.");
+      setError("Choose one person for a personal chat.");
       return;
     }
     if (mode === "group" && selectedMembers.length < 1) {
-      setError("Choose at least one team member for a group.");
+      setError("Choose at least one person for a group.");
       return;
     }
     setBusy(true);
@@ -187,9 +210,7 @@ export function ChatsHub() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to create chat");
-      setShowComposer(false);
-      setSelectedMembers([]);
-      setGroupTitle("");
+      closeComposer();
       await load();
       setSelectedId(data.conversation.id);
     } catch (err) {
@@ -230,10 +251,10 @@ export function ChatsHub() {
       <aside className={`w-full border-b border-slate-200 lg:w-80 lg:shrink-0 lg:border-b-0 lg:border-r ${selectedId ? "hidden lg:flex" : "flex"} flex-col`}>
         <div className="border-b border-slate-200 p-3">
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
-            <button onClick={() => setMode("personal")} className={`rounded-lg px-3 py-2 text-sm font-semibold ${mode === "personal" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>Personal Chats</button>
-            <button onClick={() => setMode("group")} className={`rounded-lg px-3 py-2 text-sm font-semibold ${mode === "group" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>Group Chats</button>
+            <button onClick={() => { setMode("personal"); setSelectedId(null); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${mode === "personal" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>Personal Chats</button>
+            <button onClick={() => { setMode("group"); setSelectedId(null); }} className={`rounded-lg px-3 py-2 text-sm font-semibold ${mode === "group" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>Group Chats</button>
           </div>
-          <button onClick={() => { setError(null); setShowComposer(true); }} className="mt-3 w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600">+ New {mode === "personal" ? "personal chat" : "group"}</button>
+          <button onClick={openComposer} className="mt-3 w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600">+ New {mode === "personal" ? "personal chat" : "group"}</button>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {visibleConversations.length === 0 ? (
@@ -270,7 +291,7 @@ export function ChatsHub() {
         ) : <div className="flex flex-1 items-center justify-center p-8 text-center"><div><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl">💬</div><h2 className="mt-4 text-lg font-semibold text-slate-900">Choose a chat</h2><p className="mt-1 text-sm text-slate-500">Select a conversation or create a new one.</p></div></div>}
       </main>
 
-      {showComposer && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 p-3 sm:items-center"><div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">New {mode === "personal" ? "personal chat" : "group chat"}</h2><p className="text-xs text-slate-500">Choose members from your Growth Inspector workspace.</p></div><button onClick={() => setShowComposer(false)} className="rounded-lg px-2 py-1 text-slate-500">✕</button></div>{mode === "group" && <input value={groupTitle} onChange={(event) => setGroupTitle(event.target.value)} placeholder="Group name" className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"/>}<div className="mt-4 max-h-64 space-y-1 overflow-y-auto">{members.filter((member) => member.user_id !== currentUserId).map((member) => <button key={member.user_id} onClick={() => mode === "personal" ? setSelectedMembers([member.user_id]) : toggleMember(member.user_id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${selectedMembers.includes(member.user_id) ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-slate-50"}`}><span className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold ring-2 ring-offset-1 ${onlineUserIds.has(member.user_id) ? "ring-emerald-500" : "ring-slate-300"}`} aria-label={`${member.name || member.email} · ${onlineUserIds.has(member.user_id) ? "Online" : "Offline"}`} title={`${member.name || member.email} · ${onlineUserIds.has(member.user_id) ? "Online" : "Offline"}`}>{initials(member.name || member.email)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{member.name}</span><span className="block truncate text-xs text-slate-400">{member.email}</span></span><span className="text-emerald-600">{selectedMembers.includes(member.user_id) ? "✓" : ""}</span></button>)}</div><button onClick={() => void createChat()} disabled={busy || selectedMembers.length === 0} className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Creating…" : "Create chat"}</button></div></div>}
+      {showComposer && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 p-3 sm:items-center"><div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold">New {mode === "personal" ? "personal chat" : "group chat"}</h2><p className="text-xs text-slate-500">{mode === "personal" ? "Add one person from your Growth Inspector workspace." : "Add the people who should be in this group."}</p></div><button onClick={closeComposer} className="rounded-lg px-2 py-1 text-slate-500" aria-label="Close">✕</button></div>{mode === "group" && <input value={groupTitle} onChange={(event) => setGroupTitle(event.target.value)} placeholder="Group name" className="mt-4 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500"/>}<div className="mt-4"><label htmlFor="chat-member-search" className="sr-only">Search people</label><input id="chat-member-search" value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Search people by name or email" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500" autoComplete="off"/></div><div className="mt-3 max-h-64 space-y-1 overflow-y-auto">{composerMembers.length === 0 ? <p className="p-5 text-center text-sm text-slate-500">No people found in your workspace.</p> : composerMembers.map((member) => <button key={member.user_id} type="button" onClick={() => mode === "personal" ? setSelectedMembers([member.user_id]) : toggleMember(member.user_id)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${selectedMembers.includes(member.user_id) ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-slate-50"}`}><span className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold ring-2 ring-offset-1 ${onlineUserIds.has(member.user_id) ? "ring-emerald-500" : "ring-slate-300"}`} aria-label={`${member.name || member.email} · ${onlineUserIds.has(member.user_id) ? "Online" : "Offline"}`} title={`${member.name || member.email} · ${onlineUserIds.has(member.user_id) ? "Online" : "Offline"}`}>{initials(member.name || member.email)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{member.name}</span><span className="block truncate text-xs text-slate-400">{member.email}</span></span><span className="text-emerald-600">{selectedMembers.includes(member.user_id) ? "✓" : ""}</span></button>)}</div><button onClick={() => void createChat()} disabled={busy || selectedMembers.length === 0} className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Creating…" : mode === "personal" ? "Start personal chat" : "Create group"}</button></div></div>}
       {error && <div className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-xs text-white shadow-lg">{error}</div>}
     </div>
   );
