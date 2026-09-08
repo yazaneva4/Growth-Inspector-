@@ -4,15 +4,23 @@ export const OPENCODE_MODEL = "big-pickle";
 const OPENCODE_URL = "https://opencode.ai/zen/v1/chat/completions";
 
 export function opencodeConfigured(): boolean {
-  // Big Pickle is a free OpenCode Zen model and does not require a paid key.
-  return true;
+  // The route is available only when a Zen credential is configured.
+  // Big Pickle itself is the only OpenCode model this app is allowed to call.
+  return Boolean(process.env.OPENCODE_API_KEY?.trim());
 }
 
 async function request(body: Record<string, unknown>) {
+  const key = process.env.OPENCODE_API_KEY?.trim();
+  if (!key) throw new Error("OpenCode Zen is not configured.");
   const res = await fetch(OPENCODE_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+      "User-Agent": "Growth-Inspector/1.0",
+    },
     body: JSON.stringify(body),
+    cache: "no-store",
   });
   if (!res.ok) throw new Error(`OpenCode Big Pickle request failed: ${res.status} ${await res.text()}`);
   return res.json();
