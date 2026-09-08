@@ -15,8 +15,8 @@ export default async function AgentPage() {
         Growth AI <SparkleIcon className="text-2xl" />
       </h1>
       <p className="mt-1 text-sm text-slate-500">
-        A real AI growth teammate with saved conversations, durable conversation memory,
-        model switching, tools, live provider availability, and local/cloud execution.
+        A free AI growth teammate with saved conversations, durable conversation memory,
+        workspace tools, and automatic free-model fallback between OpenCode Zen Big Pickle and OpenRouter Free Models Router.
       </p>
       <div className="mt-6">
         {signedIn ? (
@@ -28,13 +28,10 @@ export default async function AgentPage() {
             </div>
             <h2 className="mt-4 text-lg font-semibold">Sign in to use Growth AI</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              Growth AI uses your account and workspace to run AI providers, save conversations,
+              Growth AI uses your account and workspace to run the free AI routes, save conversations,
               and keep your AI history private. Please sign in before using it.
             </p>
-            <Link
-              href="/login"
-              className="mt-6 inline-flex rounded-lg bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600"
-            >
+            <Link href="/login" className="mt-6 inline-flex rounded-lg bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600">
               Sign in to Growth Inspector
             </Link>
           </div>
